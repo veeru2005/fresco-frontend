@@ -163,8 +163,16 @@ All colors MUST be HSL.
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4.5rem);
 }
 
+.mobile-safe-bottom-compact {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 3rem);
+}
+
 @media (min-width: 1024px) {
   .mobile-safe-bottom {
+    padding-bottom: 0;
+  }
+
+  .mobile-safe-bottom-compact {
     padding-bottom: 0;
   }
 }

@@ -50,6 +50,7 @@ const AppContent = () => {
   ];
   const shouldHideFooter =
     location.pathname.startsWith('/admin') || hideFooterRoutes.includes(location.pathname);
+  const useCompactMobileBottom = ['/signin', '/signup'].includes(location.pathname);
 
   useEffect(() => {
     if (!('scrollRestoration' in window.history)) return;
@@ -83,7 +84,7 @@ const AppContent = () => {
   return (
     <div className="flex flex-col min-h-screen">
       <Navbar />
-      <main className="flex-1 mobile-safe-bottom pt-16 md:pt-20">
+      <main className={`flex-1 ${useCompactMobileBottom ? 'mobile-safe-bottom-compact' : 'mobile-safe-bottom'} pt-16 md:pt-20`}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/signin" element={<SignIn />} />

@@ -159,7 +159,7 @@ const SignUp = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-start justify-center px-4 pt-8 sm:pt-10 bg-background sm:bg-gradient-to-br sm:from-primary/10 sm:via-background sm:to-secondary/10">
+    <div className="min-h-full flex items-start justify-center px-4 pt-8 sm:pt-10 bg-background sm:bg-gradient-to-br sm:from-primary/10 sm:via-background sm:to-secondary/10">
       <div className="w-full max-w-[460px] mx-auto">
         <div className="flex items-center justify-center gap-3 mb-4">
           <div className="bg-amber-400 p-3 rounded-2xl shadow-sm">

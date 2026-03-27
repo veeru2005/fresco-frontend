@@ -321,7 +321,7 @@ const Navbar = () => {
 
       {/* Mobile Bottom Navigation */}
       {mobileBottomLinks.length > 0 && (
-        <div className="lg:hidden fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+8px)] z-30 px-2">
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 bg-[#255c45] border-t border-white/20 shadow-[0_-8px_24px_rgba(0,0,0,0.2)] px-2 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)]">
           <div className="rounded-2xl border border-white/20 bg-[#255c45] shadow-lg px-2 py-2">
             <div
               className="grid gap-1"

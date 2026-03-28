@@ -159,9 +159,9 @@ const SignIn = () => {
   };
 
   return (
-    <div className="min-h-full flex items-start justify-center px-4 pt-8 sm:pt-10 bg-background sm:bg-gradient-to-br sm:from-primary/10 sm:via-background sm:to-secondary/10">
+    <div className="min-h-full flex items-start justify-center px-4 pt-6 sm:pt-8 bg-background sm:bg-gradient-to-br sm:from-primary/10 sm:via-background sm:to-secondary/10">
       <div className="w-full max-w-[460px] mx-auto">
-        <div className="flex items-center justify-center gap-3 mb-4">
+        <div className="flex items-center justify-center gap-3 mb-3">
           <div className="bg-amber-400 p-3 rounded-2xl shadow-sm">
             <ShoppingCart className="w-7 h-7 text-[#2f7656]" />
           </div>
@@ -170,29 +170,29 @@ const SignIn = () => {
           </p>
         </div>
 
-        <Card className="w-full p-6 sm:p-8 shadow-xl border-2 border-[#2f7656] rounded-3xl">
-          <div className="flex flex-col items-center gap-5">
+        <Card className="w-full p-5 sm:p-7 shadow-xl border-2 border-[#2f7656] rounded-3xl">
+          <div className="flex flex-col items-center gap-4 sm:gap-5">
             <div className="text-center w-full">
               <h1 className="text-2xl sm:text-3xl font-bold">Login</h1>
               <p className="text-muted-foreground mt-2">Sign in instantly with Google</p>
             </div>
 
-            <div className="w-full max-w-[300px]">
+            <div className="w-full max-w-[250px] sm:max-w-[300px]">
               {animationData && (
                 <Lottie
                   animationData={animationData}
                   loop
-                  style={{ width: '100%', maxWidth: '300px', margin: '0 auto' }}
+                  style={{ width: '100%', margin: '0 auto' }}
                 />
               )}
             </div>
 
-            <div className="flex flex-col items-center w-full gap-5">
+            <div className="flex flex-col items-center w-full gap-4 sm:gap-5">
               <div className="relative w-full">
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full h-14 flex items-center justify-center gap-3 border-2 border-[#255c45] hover:bg-muted font-bold text-lg rounded-xl shadow-lg"
+                  className="w-full h-12 sm:h-14 flex items-center justify-center gap-3 border-2 border-[#255c45] hover:bg-muted font-bold text-base sm:text-lg rounded-xl shadow-lg"
                   onClick={handleGoogleSignInFallback}
                   disabled={loading}
                 >

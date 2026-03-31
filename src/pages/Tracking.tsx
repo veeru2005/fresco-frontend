@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-import { Package, MapPin, Clock, CheckCircle } from 'lucide-react';
+import { Package, MapPin, Clock, CheckCircle, XCircle } from 'lucide-react';
 
 const Tracking = () => {
   const location = useLocation();
@@ -147,7 +147,9 @@ const Tracking = () => {
       'BOOKING_CONFIRMED': 'Order Confirmed',
       'VEHICLE_PREPARED': 'Product Prepared',
       'ON_THE_WAY': 'On The Way',
-      'DELIVERED': 'Delivered'
+      'DELIVERED': 'Delivered',
+      'CANCELLED': 'Cancelled',
+      'CANCELED': 'Cancelled'
     };
     return labels[status] || status;
   };
@@ -199,7 +201,9 @@ const Tracking = () => {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Current Status</p>
-                      <p className="font-semibold text-primary">{getStatusLabel(orderDetails.orderStatus)}</p>
+                      <p className={`font-semibold ${orderDetails.orderStatus === 'CANCELLED' || orderDetails.orderStatus === 'CANCELED' ? 'text-red-600' : 'text-primary'}`}>
+                        {getStatusLabel(orderDetails.orderStatus)}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Payment Method</p>
@@ -236,55 +240,91 @@ const Tracking = () => {
                 <div className="relative">
                   {/* Steps */}
                   <div>
-                    {[
-                      {
-                        label: 'Order Confirmed',
-                        description: 'Your order has been confirmed and payment processed',
-                        icon: CheckCircle,
-                      },
-                      {
-                        label: 'Product Prepared',
-                        description: 'Product has been prepared and ready for dispatch',
-                        icon: Package,
-                      },
-                      {
-                        label: 'On The Way',
-                        description: 'Product is on the way to your delivery location',
-                        icon: MapPin,
-                      },
-                      {
-                        label: 'Delivered',
-                        description: 'Product has been delivered to your location',
-                        icon: CheckCircle,
-                      },
-                    ].map((step, index, arr) => {
-                      const stepNumber = index + 1;
-                      const isDone = getStatusStep(orderDetails.orderStatus) >= stepNumber;
-                      const nextDone = getStatusStep(orderDetails.orderStatus) >= stepNumber + 1;
-                      const isLast = index === arr.length - 1;
-                      const StepIcon = step.icon;
+                    {(() => {
+                      const isCancelled = orderDetails.orderStatus === 'CANCELLED' || orderDetails.orderStatus === 'CANCELED';
+                      
+                      let steps = [
+                        {
+                          label: 'Order Confirmed',
+                          description: 'Your order has been confirmed and payment processed',
+                          icon: CheckCircle,
+                        }
+                      ];
 
-                      return (
-                        <div key={step.label} className="relative flex items-start gap-4 pb-8 last:pb-0">
-                          {!isLast && (
+                      if (isCancelled) {
+                        steps.push({
+                          label: 'Order Cancelled',
+                          description: 'Your order has been cancelled',
+                          icon: XCircle,
+                        });
+                      } else {
+                        steps.push(
+                          {
+                            label: 'Product Prepared',
+                            description: 'Product has been prepared and ready for dispatch',
+                            icon: Package,
+                          },
+                          {
+                            label: 'On The Way',
+                            description: 'Product is on the way to your delivery location',
+                            icon: MapPin,
+                          },
+                          {
+                            label: 'Delivered',
+                            description: 'Product has been delivered to your location',
+                            icon: CheckCircle,
+                          }
+                        );
+                      }
+
+                      return steps.map((step, index, arr) => {
+                        const stepNumber = index + 1;
+                        let isDone = false;
+                        let nextDone = false;
+                        let isErrorStep = false;
+                        let lineClass = 'bg-border';
+                        
+                        if (isCancelled) {
+                           if (index === 0) {
+                             isDone = true;
+                             nextDone = true;
+                             lineClass = 'bg-red-500';
+                           }
+                           if (index === 1) {
+                             isDone = true;
+                             isErrorStep = true;
+                           }
+                        } else {
+                           isDone = getStatusStep(orderDetails.orderStatus) >= stepNumber;
+                           nextDone = getStatusStep(orderDetails.orderStatus) >= stepNumber + 1;
+                           lineClass = nextDone ? 'bg-[#2f7d5b]' : 'bg-border';
+                        }
+
+                        const isLast = index === arr.length - 1;
+                        const StepIcon = step.icon;
+
+                        return (
+                          <div key={index} className={`relative flex items-start gap-4 ${isCancelled && index === 0 ? 'pb-[200px]' : 'pb-8'} last:pb-0`}>
+                            {!isLast && (
+                              <div
+                                className={`absolute left-6 top-12 bottom-0 w-0.5 ${lineClass}`}
+                              ></div>
+                            )}
                             <div
-                              className={`absolute left-6 top-12 bottom-0 w-0.5 ${nextDone ? 'bg-[#2f7d5b]' : 'bg-border'}`}
-                            ></div>
-                          )}
-                          <div
-                            className={`w-12 h-12 rounded-full flex items-center justify-center z-10 ${
-                              isDone ? 'bg-[#2f7d5b] text-white' : 'bg-muted text-muted-foreground'
-                            }`}
-                          >
-                            <StepIcon className="w-6 h-6" />
+                              className={`w-12 h-12 rounded-full flex items-center justify-center z-10 ${
+                                isErrorStep ? 'bg-red-500 text-white' : (isDone ? 'bg-[#2f7d5b] text-white' : 'bg-muted text-muted-foreground')
+                              }`}
+                            >
+                              <StepIcon className="w-6 h-6" />
+                            </div>
+                            <div className="flex-1 pt-2">
+                              <h4 className={`font-semibold text-lg ${isErrorStep ? 'text-red-500' : ''}`}>{step.label}</h4>
+                              <p className={`text-sm ${isErrorStep ? 'text-red-400' : 'text-muted-foreground'}`}>{step.description}</p>
+                            </div>
                           </div>
-                          <div className="flex-1 pt-2">
-                            <h4 className="font-semibold text-lg">{step.label}</h4>
-                            <p className="text-sm text-muted-foreground">{step.description}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
               </div>

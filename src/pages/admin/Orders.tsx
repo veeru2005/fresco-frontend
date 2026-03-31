@@ -52,6 +52,7 @@ const AdminOrders = () => {
     { value: 'VEHICLE_PREPARED', label: 'Product Prepared' },
     { value: 'ON_THE_WAY', label: 'On The Way' },
     { value: 'DELIVERED', label: 'Delivered' },
+    { value: 'CANCELLED', label: 'Cancelled' },
   ];
 
   const filteredOrders = useMemo(() => {
@@ -214,7 +215,9 @@ const AdminOrders = () => {
       'BOOKING_CONFIRMED': 'Order Confirmed',
       'VEHICLE_PREPARED': 'Product Prepared',
       'ON_THE_WAY': 'On The Way',
-      'DELIVERED': 'Delivered'
+      'DELIVERED': 'Delivered',
+      'CANCELLED': 'Cancelled',
+      'CANCELED': 'Cancelled'
     };
     return labels[status] || status;
   };

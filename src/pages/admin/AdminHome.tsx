@@ -87,7 +87,7 @@ const AdminHome = () => {
         <p className="text-muted-foreground">Live overview of your organic store</p>
       </div>
 
-      <div className={`grid grid-cols-1 sm:grid-cols-2 ${isSuperAdmin ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-6`}>
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${isSuperAdmin ? 'lg:grid-cols-5' : 'lg:grid-cols-3'} gap-6`}>
         <Card className="p-8 border-2 border-emerald-500">
           <div className="flex flex-col items-center text-center space-y-4">
             <div className="p-4 rounded-full bg-emerald-100">
@@ -120,15 +120,17 @@ const AdminHome = () => {
           </Card>
         )}
 
-        <Card className="p-8 border-2 border-cyan-500">
-          <div className="flex flex-col items-center text-center space-y-4">
-            <div className="p-4 rounded-full bg-cyan-100">
-              <UserCog className="w-8 h-8 text-cyan-700" />
+        {isSuperAdmin && (
+          <Card className="p-8 border-2 border-cyan-500">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="p-4 rounded-full bg-cyan-100">
+                <UserCog className="w-8 h-8 text-cyan-700" />
+              </div>
+              <h3 className="text-xl font-semibold">Admins</h3>
+              <p className="text-3xl font-extrabold text-cyan-700">{adminsCount}</p>
             </div>
-            <h3 className="text-xl font-semibold">Admins</h3>
-            <p className="text-3xl font-extrabold text-cyan-700">{adminsCount}</p>
-          </div>
-        </Card>
+          </Card>
+        )}
 
         <Card className="p-8 border-2 border-orange-500">
           <div className="flex flex-col items-center text-center space-y-4">

@@ -6,7 +6,7 @@ const AboutUs = () => {
     <div className="min-h-screen">
       <section className="py-6 sm:py-16 bg-background">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <Card className="p-8 sm:p-10 max-w-6xl mx-auto">
+          <Card className="p-8 sm:p-10 max-w-6xl mx-auto border-2 border-[#255c45]">
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] gap-8 items-stretch">
               <div>
                 <h2 className="text-4xl font-extrabold mb-4 flex items-center gap-2">
@@ -23,7 +23,7 @@ const AboutUs = () => {
                 </div>
               </div>
 
-              <div className="bg-yellow-50 border border-yellow-100 rounded-2xl p-6 sm:p-7 h-full flex flex-col justify-start w-full max-w-[420px] justify-self-end">
+              <div className="bg-yellow-50 border border-[#255c45] rounded-2xl p-6 sm:p-7 h-full flex flex-col justify-start w-full max-w-[420px] justify-self-end">
                 <h3 className="text-3xl font-extrabold mb-6 flex items-center gap-2">
                   Delivery Areas
                   <MapPin className="w-6 h-6 text-emerald-700" />

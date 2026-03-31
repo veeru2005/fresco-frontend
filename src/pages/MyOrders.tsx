@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChevronDown, Package, Navigation, Search, ShoppingBag } from 'lucide-react';
 import { formatDateDDMMYYYY } from '@/lib/date';
+import ConfirmActionDialog from '@/components/ConfirmActionDialog';
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 const MyOrders = () => {
@@ -13,6 +14,9 @@ const MyOrders = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [orderToCancel, setOrderToCancel] = useState<string | null>(null);
+  const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [expandedOrderIds, setExpandedOrderIds] = useState<Set<string>>(new Set());
@@ -30,14 +34,14 @@ const MyOrders = () => {
   };
 
   useEffect(() => {
-    const loadOrders = async () => {
+    const loadOrders = async (isBackground = false) => {
       if (!user?.username) {
-        setLoading(false);
+        if (!isBackground) setLoading(false);
         return;
       }
 
       try {
-        setLoading(true);
+        if (!isBackground) setLoading(true);
         const token = localStorage.getItem('fresco_token');
         const response = await fetch(`${VITE_API_BASE_URL}/api/orders/my-orders`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -54,14 +58,14 @@ const MyOrders = () => {
         console.error('Error loading orders:', err);
         setOrders([]);
       } finally {
-        setLoading(false);
+        if (!isBackground) setLoading(false);
       }
     };
 
     loadOrders();
 
     // Auto-refresh every 15 seconds to show updated order status
-    const interval = setInterval(loadOrders, 15000);
+    const interval = setInterval(() => loadOrders(true), 15000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -127,6 +131,39 @@ const MyOrders = () => {
 
   const handleTrackOrder = (orderId: string) => {
     navigate('/tracking', { state: { orderId } });
+  };
+
+  const handleCancelOrder = async () => {
+    if (!orderToCancel) return;
+    const orderId = orderToCancel;
+    try {
+      setCancellingId(orderId);
+      const token = localStorage.getItem('fresco_token');
+      const response = await fetch(`${VITE_API_BASE_URL}/api/orders/${orderId}/cancel`, {
+        method: 'PUT',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      
+      if (response.ok) {
+        const updatedOrder = await response.json();
+        setOrders(curr => curr.map(o => o.id === orderId ? { ...o, ...updatedOrder } : o));
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        alert(errorData.error || 'Failed to cancel the order. Please try again.');
+      }
+    } catch (err) {
+      console.error('Error cancelling order:', err);
+      alert('Error cancelling order. Please try again later.');
+    } finally {
+      setCancellingId(null);
+      setIsCancelDialogOpen(false);
+      setOrderToCancel(null);
+    }
+  };
+
+  const openCancelDialog = (orderId: string) => {
+    setOrderToCancel(orderId);
+    setIsCancelDialogOpen(true);
   };
 
   const filteredOrders = useMemo(() => {
@@ -258,50 +295,103 @@ const MyOrders = () => {
                       </div>
 
                       <div className="col-span-1 space-y-2 justify-self-end text-right min-w-[150px] lg:min-w-[280px] lg:justify-self-end">
-                        <div className="flex flex-col gap-2 items-end">
+                        <div className="flex flex-col gap-1 items-end">
                           <p className={`text-base font-semibold flex items-center gap-2 lg:hidden ${tone.text}`}>
                             <span className={`w-2.5 h-2.5 rounded-full ${tone.dot}`} />
                             {getStatusLabel(status)}
                           </p>
-                          <p className="text-sm text-muted-foreground">{tone.note}</p>
-                        </div>
-                        <div className="pt-1 flex items-center justify-end lg:gap-3">
+                          <p className="text-sm text-muted-foreground mb-1">{tone.note}</p>
                           <p className={`hidden lg:flex text-sm font-semibold items-center gap-2 ${tone.text}`}>
                             <span className={`w-2 h-2 rounded-full ${tone.dot}`} />
                             {getStatusLabel(status)}
                           </p>
-                          <Button
-                            onClick={() => handleTrackOrder(order.orderId || order.id)}
-                            size="sm"
-                            className="hidden lg:inline-flex ml-auto bg-[#255c45] text-white hover:bg-[#1f4a37]"
-                          >
-                            <Navigation className="w-3 h-3 mr-1" />
-                            Track Order
-                          </Button>
+                        </div>
+                        <div className="pt-2 flex flex-col items-end gap-3 lg:pt-2 lg:flex-row lg:items-center lg:justify-end">
+                          <div className="hidden lg:flex items-center gap-2 ml-auto">
+                            {(status === 'BOOKING_CONFIRMED' || status === 'VEHICLE_PREPARED') && (
+                              <Button
+                                onClick={() => openCancelDialog(String(order.id))}
+                                size="sm"
+                                disabled={cancellingId === String(order.id)}
+                                variant="destructive"
+                                className="bg-red-600 text-white hover:bg-red-700 font-medium"
+                              >
+                                {cancellingId === String(order.id) ? 'Cancelling...' : 'Cancel Order'}
+                              </Button>
+                            )}
+                            <Button
+                              onClick={() => handleTrackOrder(order.orderId || order.id)}
+                              size="sm"
+                              className="bg-[#255c45] text-white hover:bg-[#1f4a37]"
+                            >
+                              <Navigation className="w-3 h-3 mr-1" />
+                              Track Order
+                            </Button>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="col-span-2 lg:hidden -mt-1 pt-1 flex items-center justify-between">
+                      <div className="col-span-2 lg:hidden -mt-1 pt-1">
                         {hasMultipleItems ? (
-                          <button
-                            type="button"
-                            onClick={() => toggleOrderItems(String(order.id))}
-                            className="inline-flex items-center gap-1 text-sm font-semibold text-[#255c45]"
-                          >
-                            {isExpanded ? 'Hide items' : 'View items'}
-                            <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                          </button>
+                          <div className="grid grid-cols-3 items-center">
+                            <button
+                              type="button"
+                              onClick={() => toggleOrderItems(String(order.id))}
+                              className="justify-self-start inline-flex items-center gap-1 text-sm font-semibold text-[#255c45]"
+                            >
+                              {isExpanded ? 'Hide items' : 'View items'}
+                              <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {(status === 'BOOKING_CONFIRMED' || status === 'VEHICLE_PREPARED') ? (
+                              <Button
+                                onClick={() => openCancelDialog(String(order.id))}
+                                size="sm"
+                                disabled={cancellingId === String(order.id)}
+                                variant="destructive"
+                                className="justify-self-center bg-red-600 text-white hover:bg-red-700 font-medium h-8 px-2 text-xs"
+                              >
+                                {cancellingId === String(order.id) ? '...' : 'Cancel'}
+                              </Button>
+                            ) : (
+                              <span />
+                            )}
+
+                            <Button
+                              onClick={() => handleTrackOrder(order.orderId || order.id)}
+                              size="sm"
+                              className="justify-self-end bg-[#255c45] text-white hover:bg-[#1f4a37] h-8 px-2 text-xs"
+                            >
+                              <Navigation className="w-3 h-3 mr-1" />
+                              Track
+                            </Button>
+                          </div>
                         ) : (
-                          <span />
+                          <div className="flex items-center justify-between">
+                            {(status === 'BOOKING_CONFIRMED' || status === 'VEHICLE_PREPARED') ? (
+                              <Button
+                                onClick={() => openCancelDialog(String(order.id))}
+                                size="sm"
+                                disabled={cancellingId === String(order.id)}
+                                variant="destructive"
+                                className="bg-red-600 text-white hover:bg-red-700 font-medium h-8 px-2 text-xs"
+                              >
+                                {cancellingId === String(order.id) ? '...' : 'Cancel'}
+                              </Button>
+                            ) : (
+                              <span />
+                            )}
+
+                            <Button
+                              onClick={() => handleTrackOrder(order.orderId || order.id)}
+                              size="sm"
+                              className="bg-[#255c45] text-white hover:bg-[#1f4a37] h-8 px-2 text-xs"
+                            >
+                              <Navigation className="w-3 h-3 mr-1" />
+                              Track
+                            </Button>
+                          </div>
                         )}
-                        <Button
-                          onClick={() => handleTrackOrder(order.orderId || order.id)}
-                          size="sm"
-                          className="bg-[#255c45] text-white hover:bg-[#1f4a37]"
-                        >
-                          <Navigation className="w-3 h-3 mr-1" />
-                          Track Order
-                        </Button>
                       </div>
 
                       {hasMultipleItems && isExpanded && (
@@ -332,6 +422,16 @@ const MyOrders = () => {
           </div>
         )}
       </div>
+
+      <ConfirmActionDialog
+        open={isCancelDialogOpen}
+        onOpenChange={setIsCancelDialogOpen}
+        title="Cancel Order"
+        description="Are you sure you want to cancel this order? This action cannot be undone."
+        confirmLabel={cancellingId ? "Cancelling..." : "Cancel Order"}
+        cancelLabel="Keep Order"
+        onConfirm={handleCancelOrder}
+      />
     </div>
   );
 };

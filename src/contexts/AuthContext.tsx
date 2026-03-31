@@ -124,15 +124,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify({ username, password }),
       });
 
+      let errorMessage = '';
+      if (!res.ok) {
+        try {
+          const payload = await res.json();
+          errorMessage = payload?.error || '';
+        } catch {
+          errorMessage = await res.text();
+        }
+      }
+
       if (res.ok) {
         const data = await res.json();
         applyAuthPayload(data, username);
         return { success: true };
+      } else if (res.status === 404) {
+        return { success: false, error: errorMessage || 'User not found. Please sign up first.' };
       } else if (res.status === 401) {
-        return { success: false, error: 'Invalid username or password.' };
+        return { success: false, error: errorMessage || 'Invalid username or password.' };
       } else {
-        const errorText = await res.text();
-        return { success: false, error: errorText || 'Sign in failed. Please try again.' };
+        return { success: false, error: errorMessage || 'Sign in failed. Please try again.' };
       }
     } catch (error) {
       console.error('Sign in error - backend not available:', error);

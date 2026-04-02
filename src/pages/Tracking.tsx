@@ -36,7 +36,7 @@ const Tracking = () => {
     const fetchOrderDetails = async () => {
       try {
         const token = localStorage.getItem('fresco_token');
-        const response = await fetch(`${VITE_API_BASE_URL}/api/orders/${orderDetails.orderId}`, {
+        const response = await fetch(`${VITE_API_BASE_URL}/api/orders/${encodeURIComponent(orderDetails.orderId)}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (response.ok) {
@@ -61,7 +61,7 @@ const Tracking = () => {
       const fetchOrderDetails = async () => {
         try {
           const token = localStorage.getItem('fresco_token');
-          const response = await fetch(`${VITE_API_BASE_URL}/api/orders/${orderDetails.orderId}`, {
+          const response = await fetch(`${VITE_API_BASE_URL}/api/orders/${encodeURIComponent(orderDetails.orderId)}`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
           });
           if (response.ok) {
@@ -84,7 +84,7 @@ const Tracking = () => {
     
     try {
       const token = localStorage.getItem('fresco_token');
-      const response = await fetch(`${VITE_API_BASE_URL}/api/orders/${orderIdToFetch}`, {
+      const response = await fetch(`${VITE_API_BASE_URL}/api/orders/${encodeURIComponent(orderIdToFetch)}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       
@@ -331,7 +331,7 @@ const Tracking = () => {
               </div>
             </Card>
 
-            <Card className="p-6 bg-primary/5 border-2 border-[#2f7d5b]/35">
+            <Card className="p-6 bg-[#edf7f2] border-[2.5px] border-[#255c45] shadow-sm">
               <div className="flex items-start gap-4">
                 <Clock className="w-6 h-6 text-primary flex-shrink-0 mt-1" />
                 <div>

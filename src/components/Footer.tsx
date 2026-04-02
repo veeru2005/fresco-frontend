@@ -132,7 +132,7 @@ const Footer = () => {
           </div>
         </div>
 
-        <div className="border-t border-white/20 mt-8 pt-6 pb-2 text-sm text-white/70">
+        <div className="border-t border-white/20 mt-8 pt-6 pb-4 text-sm text-white/70">
           <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-between w-full mx-auto">
             <p className="text-center sm:text-left whitespace-nowrap">&copy; {new Date().getFullYear()} Fresco Organics. All rights reserved.</p>
             <div className="flex w-full flex-nowrap items-center justify-center sm:justify-end gap-1 whitespace-nowrap text-[0.55rem] sm:text-sm leading-tight tracking-tight px-1">

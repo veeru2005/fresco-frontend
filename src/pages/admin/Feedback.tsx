@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import ConfirmActionDialog from '@/components/ConfirmActionDialog';
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-import { CheckCircle2, Clock, Trash2 } from 'lucide-react';
+import { CheckCircle2, Clock, Trash2, MessageSquare } from 'lucide-react';
 
 const AdminFeedback = () => {
   const { user } = useAuth();
@@ -54,6 +54,7 @@ const AdminFeedback = () => {
               : item
           )
         );
+        window.dispatchEvent(new Event('fresco:feedbackUpdated'));
       }
     } catch (error) {
       console.error('Error marking feedback as read:', error);
@@ -72,6 +73,7 @@ const AdminFeedback = () => {
 
       if (res.ok) {
         setFeedbacks((prev) => prev.filter((item) => item.id !== id));
+        window.dispatchEvent(new Event('fresco:feedbackUpdated'));
       }
     } catch (error) {
       console.error('Error deleting feedback:', error);
@@ -99,66 +101,96 @@ const AdminFeedback = () => {
   }, []);
 
   return (
-    <div className="container mx-auto px-4 py-8 lg:pb-20">
+    <div className="container mx-auto px-5 py-8 sm:px-4 lg:pb-20">
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Customer Feedback</h1>
         <p className="text-muted-foreground">Feedback from customers</p>
       </div>
 
-      <div className="grid gap-4">
+      <div className="grid gap-4 md:grid-cols-2">
         {orderedFeedbacks.length === 0 ? (
-          <Card>
-            <div className="p-8 text-center text-muted-foreground">No feedback submitted yet</div>
+          <Card className="mx-0.5 w-full col-span-full p-6 text-center border-2 border-[#255c45] sm:mx-0 sm:p-8">
+            <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+            <h3 className="text-2xl font-bold mb-2">No feedback submitted yet</h3>
+            <p className="text-muted-foreground">Feedback from customers will appear here.</p>
           </Card>
         ) : (
           orderedFeedbacks.map(f => {
             const dateTime = formatDateTime(f.date || f.createdAt || new Date().toISOString());
             return (
-              <Card key={f.id} className={f.isRead ? 'opacity-70 border-slate-200' : 'border-emerald-200'}>
-                <div className="p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg">{f.name || f.username || 'Anonymous'}</h3>
-                      <p className="text-sm mt-1"><strong>Subject:</strong> {f.subject || '—'}</p>
-                      <p className="text-sm"><strong>Email:</strong> {f.email || '—'}</p>
-                      <p className="text-xs mt-1 font-medium text-emerald-700">
-                        {f.isRead ? 'Read' : 'Unread'}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground mb-1">
-                        <Clock className="w-4 h-4" />
-                        <span>{dateTime.time}</span>
+              <Card key={f.id} className={`mx-0.5 border-2 border-[#255c45] transition-colors sm:mx-0 ${f.isRead ? 'opacity-70' : ''}`}>
+                <div className="relative p-4 sm:p-5">
+                  {/* Mobile: Read/Unread badge at top-right corner */}
+                  <span
+                    className={`absolute right-3 top-3 rounded-full border px-1.5 py-px text-[9px] font-semibold whitespace-nowrap sm:hidden ${
+                      f.isRead
+                        ? 'border-[#255c45] bg-[#255c45]/10 text-[#255c45]'
+                        : 'border-amber-700 bg-amber-50 text-amber-700'
+                    }`}
+                  >
+                    {f.isRead ? 'Read' : 'Unread'}
+                  </span>
+
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-lg font-semibold pr-14 sm:pr-0">{f.name || f.username || 'Anonymous'}</h3>
+                      <div className="mt-1 sm:hidden">
+                        <div className="inline-flex items-center gap-0.5 rounded-full bg-[#255c45] px-1.5 py-px text-[9px] font-semibold text-white">
+                          <Clock className="h-2 w-2 shrink-0" />
+                          <span>{dateTime.time} | {dateTime.date}</span>
+                        </div>
                       </div>
-                      <p className="text-xs text-muted-foreground">{dateTime.date}</p>
+                      <p className="mt-1 text-sm"><strong>Subject:</strong> {f.subject || '—'}</p>
+                      <p className="text-sm"><strong>Email:</strong> {f.email || '—'}</p>
+                    </div>
+
+                    <div className="hidden sm:flex sm:flex-row sm:items-center gap-2 shrink-0">
+                      <div className="inline-flex items-center gap-1 rounded-full bg-[#255c45] px-2.5 py-0.5 text-xs font-semibold text-white">
+                        <Clock className="h-3 w-3 shrink-0" />
+                        <span>{dateTime.time} | {dateTime.date}</span>
+                      </div>
+                      <span
+                        className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${
+                          f.isRead
+                            ? 'border-[#255c45] bg-[#255c45]/10 text-[#255c45]'
+                            : 'border-amber-700 bg-amber-50 text-amber-700'
+                        }`}
+                      >
+                        {f.isRead ? 'Read' : 'Unread'}
+                      </span>
                     </div>
                   </div>
-                  <div className="pt-3 border-t border-border">
-                    <p className="text-sm"><strong>Message:</strong> {f.message || f.description || f.review || 'No feedback provided'}</p>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-3">
-                      {!f.isRead && (
-                        <Button
-                          type="button"
-                          onClick={() => markAsRead(f.id)}
-                          className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white"
-                        >
-                          <CheckCircle2 className="w-4 h-4 mr-2" />
-                          Mark as Read
-                        </Button>
-                      )}
-                      {isSuperAdmin && (
+
+                  <p className="mt-3 text-sm"><strong>Message:</strong> {f.message || f.description || f.review || 'No feedback provided'}</p>
+
+                  {isSuperAdmin && (
+                    <div className="mt-4 border-t border-border pt-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-h-10">
+                          {!f.isRead && (
+                            <Button
+                              type="button"
+                              onClick={() => markAsRead(f.id)}
+                              className="h-10 bg-[#255c45] px-4 text-white hover:bg-[#1a4030]"
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                              Mark as Read
+                            </Button>
+                          )}
+                        </div>
+
                         <Button
                           type="button"
                           variant="destructive"
-                          className="w-full sm:w-auto"
+                          className="h-10 px-4"
                           onClick={() => setPendingDeleteFeedbackId(f.id)}
                         >
-                          <Trash2 className="w-4 h-4 mr-2" />
+                          <Trash2 className="mr-2 h-4 w-4" />
                           Delete
                         </Button>
-                      )}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </Card>
             );

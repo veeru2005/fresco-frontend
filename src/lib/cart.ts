@@ -12,31 +12,46 @@ export interface CartItem {
 const LEGACY_CART_KEY = 'fresco_cart';
 const CART_KEY_PREFIX = 'fresco_cart';
 
-const getAuthenticatedCartKey = (): string | null => {
-  if (typeof window === 'undefined') return null;
+const getAuthenticatedCartKey = (): string => {
+  if (typeof window === 'undefined') return LEGACY_CART_KEY;
 
   const rawUser = localStorage.getItem('fresco_user');
-  if (!rawUser) return null;
+  if (!rawUser) return LEGACY_CART_KEY;
 
   try {
     const parsed = JSON.parse(rawUser) as { email?: string; username?: string; name?: string };
     const identifier = String(parsed?.email || parsed?.username || parsed?.name || '').trim().toLowerCase();
-    if (!identifier) return null;
+    if (!identifier) return LEGACY_CART_KEY;
     return `${CART_KEY_PREFIX}:${encodeURIComponent(identifier)}`;
   } catch {
-    return null;
+    return LEGACY_CART_KEY;
   }
 };
 
 const migrateLegacyCartIfNeeded = (targetKey: string) => {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || targetKey === LEGACY_CART_KEY) return;
 
   const legacy = localStorage.getItem(LEGACY_CART_KEY);
   if (!legacy) return;
 
   const target = localStorage.getItem(targetKey);
-  if (!target) {
+  const targetItems = target ? JSON.parse(target) : [];
+  const legacyItems = JSON.parse(legacy);
+
+  if (!target || targetItems.length === 0) {
     localStorage.setItem(targetKey, legacy);
+  } else if (Array.isArray(targetItems) && Array.isArray(legacyItems)) {
+    // Merge logic: Add legacy items to target if not already present
+    const merged = [...targetItems];
+    for (const lItem of legacyItems) {
+      const exists = merged.find(m => m.id === lItem.id);
+      if (exists) {
+        exists.quantity += lItem.quantity;
+      } else {
+        merged.push(lItem);
+      }
+    }
+    localStorage.setItem(targetKey, JSON.stringify(merged));
   }
 
   localStorage.removeItem(LEGACY_CART_KEY);
@@ -51,9 +66,9 @@ export const getCart = (): CartItem[] => {
   if (typeof window === 'undefined') return [];
 
   const key = getAuthenticatedCartKey();
-  if (!key) return [];
-
-  migrateLegacyCartIfNeeded(key);
+  if (key !== LEGACY_CART_KEY) {
+    migrateLegacyCartIfNeeded(key);
+  }
 
   const raw = localStorage.getItem(key);
   if (!raw) return [];
@@ -68,13 +83,7 @@ export const getCart = (): CartItem[] => {
 
 export const saveCart = (items: CartItem[]) => {
   if (typeof window === 'undefined') return;
-
   const key = getAuthenticatedCartKey();
-  if (!key) {
-    notifyCartUpdated([]);
-    return;
-  }
-
   localStorage.setItem(key, JSON.stringify(items));
   notifyCartUpdated(items);
 };
@@ -109,11 +118,6 @@ export const clearCart = () => {
   if (typeof window === 'undefined') return;
 
   const key = getAuthenticatedCartKey();
-  if (!key) {
-    notifyCartUpdated([]);
-    return;
-  }
-
   localStorage.removeItem(key);
   notifyCartUpdated([]);
 };

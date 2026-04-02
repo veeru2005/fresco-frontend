@@ -8,7 +8,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-[#1f5a42] via-[#2f7656] to-[#5a9d6f] text-white min-h-[calc(100svh-4rem)] md:min-h-[calc(100svh-5rem)] flex items-center overflow-hidden">
+      <section className="relative -mt-16 md:-mt-20 pt-16 md:pt-20 bg-gradient-to-br from-[#1f5a42] via-[#2f7656] to-[#5a9d6f] text-white min-h-[100dvh] flex items-center overflow-hidden">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542838132-92c53300491e?w=1920&auto=format&fit=crop')] bg-cover bg-center opacity-32"></div>
         <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/30 to-[#103626]/55 backdrop-blur-[2px]"></div>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">

@@ -143,7 +143,7 @@ const Booking = () => {
   };
 
   return (
-    <div className="min-h-screen py-6 sm:py-16 md:py-10">
+    <div className="min-h-screen py-6 pb-8 sm:py-16 md:py-10">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8 sm:mb-10">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
@@ -239,10 +239,10 @@ const Booking = () => {
           ))
           ) : (
             <div className="col-span-full">
-              <Card>
-                <div className="p-12 text-center">
-                  <Search className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-xl font-semibold mb-2">No products found</h3>
+              <Card className="w-full border-2 border-[#255c45]">
+                <div className="p-6 sm:p-8 text-center">
+                  <Search className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+                  <h3 className="text-2xl font-bold mb-2">No products found</h3>
                   <p className="text-muted-foreground">
                     {searchQuery 
                       ? 'Try adjusting your search terms'

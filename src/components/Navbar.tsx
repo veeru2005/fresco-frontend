@@ -1,13 +1,13 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import SolidUserIcon from '@/components/SolidUserIcon';
 import {
   Menu,
   X,
   LogOut,
   ShoppingCart,
-  User,
   House,
   Package,
   BookMarked,
@@ -36,7 +36,7 @@ const iconByName: Record<string, any> = {
   Admins: ShieldCheck,
 };
 
-const renderNavIcon = (name: string, cartCount = 0) => {
+const renderNavIcon = (name: string, cartCount = 0, unreadFeedbackCount = 0) => {
   const Icon = iconByName[name] || Package;
 
   if (name === 'Cart') {
@@ -44,8 +44,21 @@ const renderNavIcon = (name: string, cartCount = 0) => {
       <span className="relative inline-flex">
         <Icon className="w-4 h-4" />
         {cartCount > 0 && (
-          <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] rounded-full bg-amber-400 text-slate-900 text-[10px] font-bold leading-[18px] text-center px-1 border border-[#255c45]">
+          <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold leading-[18px] text-center px-1 border border-white/50">
             {cartCount > 99 ? '99+' : cartCount}
+          </span>
+        )}
+      </span>
+    );
+  }
+
+  if (name === 'Feedback') {
+    return (
+      <span className="relative inline-flex">
+        <Icon className="w-4 h-4" />
+        {unreadFeedbackCount > 0 && (
+          <span className="absolute -top-2 -right-2 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold leading-[18px] text-center px-1 border border-white/50">
+            {unreadFeedbackCount > 99 ? '99+' : unreadFeedbackCount}
           </span>
         )}
       </span>
@@ -61,6 +74,7 @@ const Navbar = () => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [unreadFeedbackCount, setUnreadFeedbackCount] = useState(0);
 
   const syncCartCount = () => {
     const total = getCart().reduce((sum, item) => sum + Math.max(0, Number(item.quantity || 0)), 0);
@@ -128,12 +142,30 @@ const Navbar = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  const fetchUnreadFeedbackCount = async () => {
+    if (!isAdminUser) { setUnreadFeedbackCount(0); return; }
+    try {
+      const token = localStorage.getItem('fresco_token');
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/admin/feedback`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const count = Array.isArray(data) ? data.filter((f: any) => !f.isRead).length : 0;
+        setUnreadFeedbackCount(count);
+      }
+    } catch (e) {
+      console.error('Error fetching unread feedback count:', e);
+    }
+  };
+
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
   useEffect(() => {
     syncCartCount();
+    fetchUnreadFeedbackCount();
 
     const onStorage = (e: StorageEvent) => {
       if (!e.key || e.key.startsWith('fresco_cart') || e.key === 'fresco_user') {
@@ -142,12 +174,15 @@ const Navbar = () => {
     };
 
     const onCartUpdated = () => syncCartCount();
+    const onFeedbackUpdated = () => fetchUnreadFeedbackCount();
     window.addEventListener('storage', onStorage);
     window.addEventListener('fresco:cartUpdated', onCartUpdated as EventListener);
+    window.addEventListener('fresco:feedbackUpdated', onFeedbackUpdated as EventListener);
 
     return () => {
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('fresco:cartUpdated', onCartUpdated as EventListener);
+      window.removeEventListener('fresco:feedbackUpdated', onFeedbackUpdated as EventListener);
     };
   }, [isAuthenticated, user?.email, user?.username]);
 
@@ -184,7 +219,7 @@ const Navbar = () => {
                     variant={isActive(link.path) ? 'default' : 'ghost'}
                     className={`${isActive(link.path) ? 'bg-amber-400 text-slate-900 hover:bg-amber-300 hover:text-slate-900' : 'text-white hover:bg-white/10 hover:text-white'} font-semibold inline-flex items-center gap-2`}
                   >
-                    {renderNavIcon(link.name, cartCount)}
+                    {renderNavIcon(link.name, cartCount, unreadFeedbackCount)}
                     {link.name}
                   </Button>
                 </Link>
@@ -196,17 +231,28 @@ const Navbar = () => {
               {isAuthenticated ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="flex items-center p-1 pr-3 gap-2 text-white hover:text-white hover:bg-white/10 outline-none border-none rounded-full">
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-400 text-[#255c45]">
-                        <User className="w-4 h-4 flex-shrink-0" />
+                    <Button
+                      variant="ghost"
+                      className="flex items-center p-1 pr-3 gap-2 text-white hover:text-white hover:bg-white/10 rounded-full border-2 border-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-white"
+                    >
+                      <span className="inline-flex h-8 w-8 shrink-0 aspect-square items-center justify-center rounded-full bg-amber-400 text-[#255c45]">
+                        <SolidUserIcon className="w-5 h-5 flex-shrink-0" />
                       </span>
                       <span className="text-sm font-semibold !text-white">{user?.username}</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuContent align="end" className="w-48 border-2 border-[#255c45] p-1.5">
+                    <DropdownMenuItem
+                      onClick={() => navigate('/profile')}
+                      className="cursor-pointer font-semibold !bg-amber-400 !text-slate-900 hover:!bg-amber-500 hover:!text-slate-900 focus:!bg-amber-500 focus:!text-slate-900 data-[highlighted]:!bg-amber-500 data-[highlighted]:!text-slate-900 rounded-md transition-colors w-full"
+                    >
+                      <SolidUserIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+                      Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator className="my-1 bg-[#94a3b8]/70" />
                     <DropdownMenuItem 
                       onClick={handleLogout} 
-                      className="cursor-pointer font-semibold transition-colors focus:!bg-red-500 hover:!bg-red-500 focus:!text-white hover:!text-white"
+                      className="cursor-pointer font-semibold !bg-red-500 !text-white hover:!bg-red-600 hover:!text-white focus:!bg-red-600 focus:!text-white data-[highlighted]:!bg-red-600 data-[highlighted]:!text-white rounded-md transition-colors w-full"
                     >
                       <LogOut className="w-4 h-4 mr-2 flex-shrink-0" />
                       Logout
@@ -267,9 +313,10 @@ const Navbar = () => {
                       variant={isActive(link.path) ? 'default' : 'ghost'}
                       className={`w-full justify-center font-semibold inline-flex items-center gap-2 ${isActive(link.path) ? 'bg-amber-400 text-slate-900 hover:bg-amber-300 hover:text-slate-900' : 'text-white hover:bg-white/10 hover:text-white'}`}
                     >
-                      {renderNavIcon(link.name, cartCount)}
+                      {renderNavIcon(link.name, cartCount, unreadFeedbackCount)}
                       {link.name}
                       {link.name === 'Cart' && cartCount > 0 ? `(${cartCount > 99 ? '99+' : cartCount})` : ''}
+                      {link.name === 'Feedback' && unreadFeedbackCount > 0 ? `(${unreadFeedbackCount > 99 ? '99+' : unreadFeedbackCount})` : ''}
                     </Button>
                   </Link>
                 ))}
@@ -279,21 +326,33 @@ const Navbar = () => {
                 {isAuthenticated ? (
                   <>
                     <div className="flex items-center justify-center gap-2 px-3 py-2 w-full">
-                      <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-400 text-[#255c45]">
-                        <User className="w-4 h-4 flex-shrink-0" />
+                      <span className="inline-flex h-8 w-8 shrink-0 aspect-square items-center justify-center rounded-full bg-amber-400 text-[#255c45]">
+                        <SolidUserIcon className="w-5 h-5 flex-shrink-0" />
                       </span>
                       <span className="text-sm font-semibold !text-white">{user?.username}</span>
                     </div>
-                    <Button
-                      onClick={() => {
-                        handleLogout();
-                        setMobileMenuOpen(false);
-                      }}
-                      className="w-full justify-center font-semibold bg-red-500 text-white hover:bg-red-600 hover:text-white border-red-500 transition-colors"
-                    >
-                      <LogOut className="w-4 h-4 mr-2 flex-shrink-0" />
-                      Logout
-                    </Button>
+                    <div className="w-full flex items-center justify-between gap-3 mt-2">
+                      <Link
+                        to="/profile"
+                        className="flex-1"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                      <Button className="w-full justify-center font-semibold bg-amber-400 text-slate-900 hover:bg-amber-300 transition-colors shadow-md">
+                          <SolidUserIcon className="w-4 h-4 mr-2 flex-shrink-0" />
+                          Profile
+                        </Button>
+                      </Link>
+                      <Button
+                        onClick={() => {
+                          handleLogout();
+                          setMobileMenuOpen(false);
+                        }}
+                        className="flex-1 justify-center font-semibold bg-red-500 text-white hover:bg-red-600 hover:text-white border-red-500 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4 mr-2 flex-shrink-0" />
+                        Logout
+                      </Button>
+                    </div>
                   </>
                 ) : (
                   <>
@@ -337,7 +396,7 @@ const Navbar = () => {
                       active ? 'bg-amber-400 text-slate-900' : 'text-white/90'
                     }`}
                   >
-                    <span className={active ? 'text-slate-900' : 'text-white/90'}>{renderNavIcon(link.name, cartCount)}</span>
+                    <span className={active ? 'text-slate-900' : 'text-white/90'}>{renderNavIcon(link.name, cartCount, unreadFeedbackCount)}</span>
                     <span className="leading-none text-[11px] text-center whitespace-nowrap">{getMobileBottomLabel(link.name)}</span>
                   </Link>
                 );

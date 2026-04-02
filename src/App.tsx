@@ -21,6 +21,7 @@ import Tracking from "./pages/Tracking";
 import Feedback from "./pages/Feedback";
 import AboutUs from "./pages/AboutUs";
 import MyOrders from "./pages/MyOrders";
+import Profile from "./pages/Profile";
 import AdminHome from "./pages/admin/AdminHome";
 import AdminProducts from "./pages/admin/Products";
 import AdminOrders from "./pages/admin/Orders";
@@ -44,13 +45,14 @@ const AppContent = () => {
     '/tracking',
     '/my-orders',
     '/my-bookings',
+    '/profile',
     '/delivery-details',
     '/payment',
     '/payment-success',
   ];
   const shouldHideFooter =
     location.pathname.startsWith('/admin') || hideFooterRoutes.includes(location.pathname);
-  const useCompactMobileBottom = ['/signin', '/signup'].includes(location.pathname);
+  const useCompactMobileBottom = ['/signin'].includes(location.pathname);
 
   useEffect(() => {
     if (!('scrollRestoration' in window.history)) return;
@@ -85,33 +87,36 @@ const AppContent = () => {
     <div className="flex flex-col min-h-screen">
       <Navbar />
       <main className={`flex-1 ${useCompactMobileBottom ? 'mobile-safe-bottom-compact' : 'mobile-safe-bottom'} pt-16 md:pt-20`}>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/signin" element={<SignIn />} />
-          <Route path="/signup" element={<SignUp />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/booking" element={<Booking />} />
-          <Route path="/products" element={<Booking />} />
-          <Route path="/cart" element={<Cart />} />
-          <Route path="/delivery-details" element={<ProtectedRoute><DeliveryDetails /></ProtectedRoute>} />
-          <Route path="/payment" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
-          <Route path="/payment-success" element={<ProtectedRoute><PaymentSuccess /></ProtectedRoute>} />
-          <Route path="/tracking" element={<ProtectedRoute><Tracking /></ProtectedRoute>} />
-          <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
-          <Route path="/my-orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
-          <Route path="/my-bookings" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
+        <div key={`${location.pathname}${location.search}`} className="page-transition-enter">
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/signin" element={<SignIn />} />
+            <Route path="/signup" element={<SignUp />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/booking" element={<Booking />} />
+            <Route path="/products" element={<Booking />} />
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/delivery-details" element={<ProtectedRoute><DeliveryDetails /></ProtectedRoute>} />
+            <Route path="/payment" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
+            <Route path="/payment-success" element={<ProtectedRoute><PaymentSuccess /></ProtectedRoute>} />
+            <Route path="/tracking" element={<ProtectedRoute><Tracking /></ProtectedRoute>} />
+            <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
+            <Route path="/my-orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
+            <Route path="/my-bookings" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
-          {/* Admin routes (protected) */}
-          <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminHome /></ProtectedRoute>} />
-          <Route path="/admin/products" element={<ProtectedRoute requireAdmin><AdminProducts /></ProtectedRoute>} />
-          <Route path="/admin/orders" element={<ProtectedRoute requireAdmin><AdminOrders /></ProtectedRoute>} />
-          <Route path="/admin/customers" element={<ProtectedRoute requireSuperAdmin><AdminCustomers /></ProtectedRoute>} />
-          <Route path="/admin/admins" element={<ProtectedRoute requireSuperAdmin><Admins /></ProtectedRoute>} />
-          <Route path="/admin/feedback" element={<ProtectedRoute requireAdmin><AdminFeedback /></ProtectedRoute>} />
+            {/* Admin routes (protected) */}
+            <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminHome /></ProtectedRoute>} />
+            <Route path="/admin/products" element={<ProtectedRoute requireAdmin><AdminProducts /></ProtectedRoute>} />
+            <Route path="/admin/orders" element={<ProtectedRoute requireAdmin><AdminOrders /></ProtectedRoute>} />
+            <Route path="/admin/customers" element={<ProtectedRoute requireSuperAdmin><AdminCustomers /></ProtectedRoute>} />
+            <Route path="/admin/admins" element={<ProtectedRoute requireSuperAdmin><Admins /></ProtectedRoute>} />
+            <Route path="/admin/feedback" element={<ProtectedRoute requireAdmin><AdminFeedback /></ProtectedRoute>} />
 
-          <Route path="/about" element={<AboutUs />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+            <Route path="/about" element={<AboutUs />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </div>
       </main>
       {!shouldHideFooter && <Footer />}
     </div>

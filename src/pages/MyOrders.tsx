@@ -232,12 +232,10 @@ const MyOrders = () => {
             </CardContent>
           </Card>
         ) : filteredOrders.length === 0 ? (
-          <Card>
-            <CardContent className="p-12 text-center">
-              <Package className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-xl font-semibold mb-2">No matching orders</h3>
-              <p className="text-muted-foreground">Try changing search or status filter</p>
-            </CardContent>
+          <Card className="w-full p-6 sm:p-8 text-center border-2 border-[#255c45]">
+            <Package className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+            <h3 className="text-2xl font-bold mb-2">No matching orders</h3>
+            <p className="text-muted-foreground">Try changing search or status filter</p>
           </Card>
         ) : (
           <div className="space-y-3">

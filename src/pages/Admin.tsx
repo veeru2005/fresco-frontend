@@ -381,10 +381,10 @@ const Admin = () => {
           
           <div className="grid gap-4">
             {filteredOrders.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center text-muted-foreground">
-                  No orders found
-                </CardContent>
+              <Card className="w-full p-6 sm:p-8 text-center border-2 border-[#255c45]">
+                <ShoppingCart className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                <h3 className="text-2xl font-bold mb-2">No orders found</h3>
+                <p className="text-muted-foreground">There are currently no orders.</p>
               </Card>
             ) : (
               filteredOrders.map((order) => (
@@ -442,10 +442,10 @@ const Admin = () => {
           <h2 className="text-2xl font-semibold">Registered Customers</h2>
           <div className="grid gap-4">
             {customers.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center text-muted-foreground">
-                  No customers registered yet
-                </CardContent>
+              <Card className="w-full p-6 sm:p-8 text-center border-2 border-[#255c45]">
+                <Users className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                <h3 className="text-2xl font-bold mb-2">No customers registered yet</h3>
+                <p className="text-muted-foreground">Customer records will appear here.</p>
               </Card>
             ) : (
               customers.map((customer, index) => (
@@ -471,10 +471,10 @@ const Admin = () => {
           <h2 className="text-2xl font-semibold">Customer Feedback</h2>
           <div className="grid gap-4">
             {feedbacks.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center text-muted-foreground">
-                  No feedback submitted yet
-                </CardContent>
+              <Card className="w-full p-6 sm:p-8 text-center border-2 border-[#255c45]">
+                <MessageSquare className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                <h3 className="text-2xl font-bold mb-2">No feedback submitted yet</h3>
+                <p className="text-muted-foreground">Feedback from customers will appear here.</p>
               </Card>
             ) : (
               feedbacks.map((feedback) => (

@@ -2,12 +2,32 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 interface User {
+  id?: string;
   username: string;
   email: string;
   role?: 'user' | 'admin' | 'super-admin';
   isAdmin?: boolean;
   isSuperAdmin?: boolean;
   profilePic?: string;
+  fullName?: string;
+  mobileNumber?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  gender?: string;
+  country?: string;
+}
+
+interface ProfilePayload {
+  fullName: string;
+  mobileNumber: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+  gender: string;
+  country: string;
 }
 
 interface AuthContextType {
@@ -16,7 +36,11 @@ interface AuthContextType {
   isAuthReady: boolean;
   signIn: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signUp: (username: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signInWithGoogle: (idToken: string, mode?: 'signin' | 'signup') => Promise<{ success: boolean; error?: string }>;
+  signInWithGoogle: (
+    idToken: string,
+    mode?: 'signin' | 'signup',
+    profile?: Partial<ProfilePayload>
+  ) => Promise<{ success: boolean; error?: string }>;
   signOut: () => void;
 }
 
@@ -45,12 +69,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const usernameValue = data.username || data.user?.name || fallbackUsername || 'user';
     const emailValue = data.email || data.user?.email || '';
     const userData = {
+      id: data.user?.id,
       username: usernameValue,
       email: emailValue,
       role: role as User['role'],
       isAdmin: role === 'admin' || role === 'super-admin',
       isSuperAdmin: role === 'super-admin',
       profilePic: `https://api.dicebear.com/7.x/avataaars/svg?seed=${usernameValue}`,
+      fullName: data.user?.fullName || '',
+      mobileNumber: data.user?.mobileNumber || '',
+      address: data.user?.address || '',
+      city: data.user?.city || '',
+      state: data.user?.state || '',
+      pincode: data.user?.pincode || '',
+      gender: data.user?.gender || '',
+      country: data.user?.country || '',
     };
 
     setUser(userData);
@@ -72,6 +105,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         };
         const normalizedRole = String(parsedUser?.role || 'user').toLowerCase();
         const normalizedUser: User = {
+          id: parsedUser?.id,
           username: parsedUser?.username || parsedUser?.name || 'user',
           email: parsedUser?.email || '',
           role: normalizedRole as User['role'],
@@ -84,6 +118,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           profilePic:
             parsedUser?.profilePic ||
             `https://api.dicebear.com/7.x/avataaars/svg?seed=${parsedUser?.username || parsedUser?.name || 'user'}`,
+          fullName: parsedUser?.fullName || '',
+          mobileNumber: parsedUser?.mobileNumber || '',
+          address: parsedUser?.address || '',
+          city: parsedUser?.city || '',
+          state: parsedUser?.state || '',
+          pincode: parsedUser?.pincode || '',
+          gender: parsedUser?.gender || '',
+          country: parsedUser?.country || '',
         };
         setUser(normalizedUser);
         localStorage.setItem('fresco_user', JSON.stringify(normalizedUser));
@@ -153,13 +195,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signInWithGoogle = async (
     idToken: string,
-    mode: 'signin' | 'signup' = 'signin'
+    mode: 'signin' | 'signup' = 'signin',
+    profile?: Partial<ProfilePayload>
   ): Promise<{ success: boolean; error?: string }> => {
     try {
       const res = await fetch(`${VITE_API_BASE_URL}/api/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken, mode }),
+        body: JSON.stringify({ idToken, mode, ...(profile || {}) }),
       });
 
       if (!res.ok) {

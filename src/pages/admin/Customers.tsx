@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import ConfirmActionDialog from '@/components/ConfirmActionDialog';
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-import { Search, Trash2 } from 'lucide-react';
+import { Search, Trash2, Users } from 'lucide-react';
 
 const AdminCustomers = () => {
   const { user } = useAuth();
@@ -101,10 +101,10 @@ const AdminCustomers = () => {
 
       <div className="grid gap-4">
         {filteredCustomers.length === 0 ? (
-          <Card>
-            <div className="p-8 text-center text-muted-foreground">
-              {searchQuery ? 'No customers found matching your search' : 'No customers registered yet'}
-            </div>
+          <Card className="w-full p-6 sm:p-8 text-center border-2 border-[#255c45]">
+            <Users className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+            <h3 className="text-2xl font-bold mb-2">{searchQuery ? 'No matching customers' : 'No customers registered yet'}</h3>
+            <p className="text-muted-foreground">{searchQuery ? 'Try another search query.' : 'There are currently no registered customers.'}</p>
           </Card>
         ) : (
           filteredCustomers.map((c) => (

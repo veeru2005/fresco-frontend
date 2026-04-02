@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Product } from '@/data/mockData';
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
-import { Search, Trash2 } from 'lucide-react';
+import { Search, Trash2, PackageSearch } from 'lucide-react';
 
 const UNIT_OPTIONS = ['kg', 'gm', 'dozen', 'liter', 'ml'];
 const MAX_IMAGE_UPLOAD_BYTES = 1024 * 1024;
@@ -413,17 +413,17 @@ const AdminProducts = () => {
             </p>
           </div>
           <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="relative flex-1 md:w-[300px] rounded-2xl border-2 border-[#2f7d5b] p-0.5">
+            <div className="relative w-full md:w-[300px] h-10 rounded-xl border-2 border-[#255c45]">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
                 placeholder="Search products..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-10 rounded-xl border-0 shadow-none focus-visible:ring-0 focus-visible:border-0"
+                className="pl-10 h-full rounded-xl border-0 shadow-none focus-visible:ring-0 focus-visible:border-0"
               />
             </div>
             {canManageProducts && (
-              <Button onClick={openAdd} className="bg-[#2f7d5b] hover:bg-[#276b4d] text-white whitespace-nowrap">+ Add Product</Button>
+              <Button onClick={openAdd} className="h-10 rounded-xl bg-[#255c45] hover:bg-[#214f3b] text-white whitespace-nowrap px-4">+ Add Product</Button>
             )}
           </div>
         </div>
@@ -431,7 +431,7 @@ const AdminProducts = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
         {filteredProducts.map(product => (
-          <Card key={product.id} className="overflow-hidden border-2 border-[#2f7d5b] rounded-3xl transition-all duration-300 hover:shadow-xl flex flex-col h-full">
+          <Card key={product.id} className="overflow-hidden border-2 border-[#255c45] rounded-3xl transition-all duration-300 hover:shadow-xl flex flex-col h-full">
             <div className="relative">
               <img
                 src={product.image}
@@ -441,7 +441,7 @@ const AdminProducts = () => {
               {!product.available && (
                 <div className="absolute inset-0 bg-black/35"></div>
               )}
-              <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-medium ${product.available ? 'bg-[#2f7d5b] text-white' : 'bg-red-500 text-white'}`}>
+              <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-medium ${product.available ? 'bg-[#255c45] text-white' : 'bg-red-500 text-white'}`}>
                 {product.available ? 'In Stock' : 'Out of Stock'}
               </div>
             </div>
@@ -450,7 +450,7 @@ const AdminProducts = () => {
                 <div className="min-w-0">
                   <h3 className="font-semibold text-lg leading-snug break-words !text-[1.15rem]">{product.name || 'N/A'}</h3>
                 </div>
-                <p className="shrink-0 font-bold text-[#2f7d5b] !text-[1.35rem] leading-none inline-flex items-baseline gap-1">
+                <p className="shrink-0 font-bold text-[#255c45] !text-[1.35rem] leading-none inline-flex items-baseline gap-1">
                   ₹{Number(product.price || 0)}
                   <span className="text-muted-foreground font-semibold !text-[1.2rem]">/{(product as any).unit || 'kg'}</span>
                 </p>
@@ -469,12 +469,12 @@ const AdminProducts = () => {
                       <Button 
                         onClick={() => toggleAvailability(product.id)} 
                         variant="outline" 
-                        className="w-full h-11 text-sm border-[#2f7d5b]"
+                        className="w-full h-11 text-sm border-[#255c45]"
                         size="sm"
                       >
                         {product.available ? 'Out of Stock' : 'In Stock'}
                       </Button>
-                      <Button onClick={() => openEdit(product)} variant="outline" size="sm" className="w-full h-11 text-sm border-[#2f7d5b]">
+                      <Button onClick={() => openEdit(product)} variant="outline" size="sm" className="w-full h-11 text-sm border-[#255c45]">
                         Edit
                       </Button>
                     </div>
@@ -491,17 +491,17 @@ const AdminProducts = () => {
         ))}
         {filteredProducts.length === 0 && (
           <div className="col-span-full">
-            <Card>
-              <div className="p-8 text-center text-muted-foreground">
-                {searchQuery ? 'No products found matching your search' : 'No products available'}
-              </div>
+            <Card className="w-full p-6 sm:p-8 text-center border-2 border-[#255c45]">
+              <PackageSearch className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+              <h3 className="text-2xl font-bold mb-2">{searchQuery ? 'No matching products' : 'No products available'}</h3>
+              <p className="text-muted-foreground">{searchQuery ? 'Try adjusting your search query.' : 'There are currently no products available.'}</p>
             </Card>
           </div>
         )}
       </div>
       {/* Edit/Add Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="w-[95vw] max-w-2xl max-h-[92vh] overflow-y-auto border-[3px] border-[#2f7d5b]">
+        <DialogContent className="w-[92vw] sm:w-[95vw] max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-[28px] border-2 border-[#255c45] p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
           </DialogHeader>
@@ -512,7 +512,7 @@ const AdminProducts = () => {
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="border-2 border-[#2f7d5b] focus-visible:ring-0 focus-visible:border-[#2f7d5b] focus:outline-none"
+                className="h-12 rounded-xl sm:rounded-2xl border-2 border-[#255c45] px-4 focus-visible:ring-0 focus-visible:border-[#255c45] focus:outline-none"
               />
             </div>
 
@@ -522,7 +522,7 @@ const AdminProducts = () => {
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="border-2 border-[#2f7d5b] focus-visible:ring-0 focus-visible:border-[#2f7d5b] focus:outline-none"
+                className="rounded-xl sm:rounded-2xl border-2 border-[#255c45] px-4 py-3 focus-visible:ring-0 focus-visible:border-[#255c45] focus:outline-none"
               />
             </div>
 
@@ -534,7 +534,7 @@ const AdminProducts = () => {
                   type="number"
                   value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  className="border-2 border-[#2f7d5b] focus-visible:ring-0 focus-visible:border-[#2f7d5b] focus:outline-none"
+                  className="h-12 rounded-xl sm:rounded-2xl border-2 border-[#255c45] px-4 focus-visible:ring-0 focus-visible:border-[#255c45] focus:outline-none"
                 />
               </div>
               <div className="space-y-2">
@@ -543,7 +543,7 @@ const AdminProducts = () => {
                   id="unit"
                   value={formData.unit}
                   onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                  className="w-full h-10 rounded-md border-2 border-[#2f7d5b] bg-background px-3 text-sm outline-none focus-visible:ring-0 focus-visible:border-[#2f7d5b]"
+                  className="w-full h-12 rounded-xl sm:rounded-2xl border-2 border-[#255c45] bg-background px-4 text-sm outline-none focus-visible:ring-0 focus-visible:border-[#255c45]"
                 >
                   {UNIT_OPTIONS.map((unit) => (
                     <option key={unit} value={unit}>{unit}</option>
@@ -565,13 +565,13 @@ const AdminProducts = () => {
                   void handleImageSelection(selectedFile);
                 }}
               />
-              <div className="rounded-md border-2 border-[#2f7d5b] bg-background p-3">
+              <div className="rounded-xl sm:rounded-2xl border-2 border-[#255c45] bg-background p-3">
                 <div className="flex flex-col md:flex-row gap-4 md:items-start">
                   <div className="flex-1 space-y-3">
-                    <div className="flex items-center gap-3 rounded-md border-2 border-[#2f7d5b] bg-background px-3 py-2">
+                    <div className="flex items-center gap-3 rounded-xl border border-[#255c45]/60 bg-white px-3 py-2.5">
                       <Button
                         type="button"
-                        className="h-9 border border-amber-300 bg-amber-400 text-slate-900 hover:bg-amber-500"
+                        className="h-10 rounded-xl border border-amber-300 bg-amber-400 px-5 text-slate-900 hover:bg-amber-500"
                         onClick={() => fileInputRef.current?.click()}
                       >
                         Choose File
@@ -585,7 +585,7 @@ const AdminProducts = () => {
                       <div className="flex flex-wrap items-center gap-2">
                         {imageFile && (
                           <Button type="button" variant="destructive" size="sm" onClick={clearSelectedImage}>
-                            <Trash2 className="w-4 h-4 mr-1" />
+                            <Trash2 className="w-4 h-4" />
                             Remove selected image
                           </Button>
                         )}
@@ -606,7 +606,7 @@ const AdminProducts = () => {
                       <img
                         src={imagePreviewUrl || editingProduct?.image}
                         alt="Selected product preview"
-                        className="w-full md:w-36 h-24 rounded-md border border-[#2f7d5b] object-cover bg-muted"
+                        className="w-full md:w-36 h-24 rounded-xl border border-[#255c45] object-cover bg-muted"
                       />
                     </div>
                   )}
@@ -621,12 +621,12 @@ const AdminProducts = () => {
             <div className="flex items-center justify-between gap-3 pt-2">
               <Button
                 type="button"
-                className="border border-amber-300 bg-amber-400 text-slate-900 hover:bg-amber-500"
+                className="h-11 rounded-xl sm:rounded-2xl border border-amber-300 bg-amber-400 px-6 text-slate-900 hover:bg-amber-500"
                 onClick={() => setIsEditOpen(false)}
               >
                 Cancel
               </Button>
-              <Button onClick={handleUpdate} disabled={isSaving}>
+              <Button className="h-11 rounded-xl sm:rounded-2xl px-6" onClick={handleUpdate} disabled={isSaving}>
                 {isSaving ? 'Saving...' : 'Save'}
               </Button>
             </div>

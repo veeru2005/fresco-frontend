@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { MapPin } from 'lucide-react';
 import { clearCart, removeFromCart } from '@/lib/cart';
+import { previewOffers, type OfferPreviewResponse } from '@/lib/offers';
 import Lottie from 'lottie-react';
 
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -25,6 +26,8 @@ const Payment = () => {
   const [orderConfirmedAnimData, setOrderConfirmedAnimData] = useState<any>(null);
   const [showSuccessFlow, setShowSuccessFlow] = useState(false);
   const [successStep, setSuccessStep] = useState<'order' | 'confirmed'>('order');
+  const [couponCode, setCouponCode] = useState('');
+  const [offerPreview, setOfferPreview] = useState<OfferPreviewResponse | null>(null);
   const buyNowQty = Math.max(1, Number(localStorage.getItem('selected_quantity') || 1));
   const subtotal = checkoutSource === 'cart'
     ? cartItems.reduce((sum, item) => sum + Number(item.price || 0) * Math.max(1, Number(item.quantity || 1)), 0)
@@ -32,12 +35,38 @@ const Payment = () => {
   const deliveryCharge = subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_CHARGE;
   const amountToFreeDelivery = Math.max(0, FREE_DELIVERY_THRESHOLD - subtotal);
   const totalPayable = subtotal + deliveryCharge;
+  const effectiveDiscount = Number(offerPreview?.discountAmount || 0);
+  const effectiveDelivery = Number(offerPreview?.deliveryCharge ?? deliveryCharge);
+  const effectiveTotal = Number(offerPreview?.payableAmount ?? totalPayable);
+  const orderItemsForDisplay =
+    checkoutSource === 'cart' && cartItems.length
+      ? cartItems.map((item) => ({
+          id: String(item.id || item._id || item.name || 'item'),
+          name: String(item.name || 'Product'),
+          type: String(item.type || item.category || 'Item'),
+          image: String(item.image || product?.image || ''),
+          quantity: Math.max(1, Number(item.quantity || 1)),
+          unitPrice: Number(item.price || 0),
+        }))
+      : product
+      ? [
+          {
+            id: String(product.id || product._id || product.name || 'buy-now'),
+            name: String(product.name || 'Product'),
+            type: String(product.type || product.category || 'Item'),
+            image: String(product.image || ''),
+            quantity: buyNowQty,
+            unitPrice: Number(product.price || 0),
+          },
+        ]
+      : [];
 
   useEffect(() => {
     const savedProduct = localStorage.getItem('selected_product');
     const savedDelivery = localStorage.getItem('delivery_details');
     const savedCart = localStorage.getItem('selected_cart');
     const savedCheckoutSource = localStorage.getItem('checkout_source');
+    const savedOffer = localStorage.getItem('checkout_offer');
 
     if (!savedProduct || !savedDelivery) {
       navigate('/products');
@@ -61,7 +90,34 @@ const Payment = () => {
         setCartItems([]);
       }
     }
+
+    if (savedOffer) {
+      try {
+        const parsed = JSON.parse(savedOffer);
+        setCouponCode(String(parsed?.couponCode || ''));
+      } catch {
+        setCouponCode('');
+      }
+    }
   }, [navigate]);
+
+  useEffect(() => {
+    const loadPricing = async () => {
+      if (!product) return;
+      try {
+        const pricing = await previewOffers({
+          subtotal,
+          deliveryCharge,
+          couponCode: couponCode || undefined,
+        });
+        setOfferPreview(pricing);
+      } catch {
+        setOfferPreview(null);
+      }
+    };
+
+    loadPricing();
+  }, [product, subtotal, deliveryCharge, couponCode]);
 
   useEffect(() => {
     const loadAnimations = async () => {
@@ -97,7 +153,10 @@ const Payment = () => {
     try {
       await new Promise((resolve) => setTimeout(resolve, 1200));
       const token = localStorage.getItem('fresco_token');
-      const fullAddress = `${deliveryDetails.address}, ${deliveryDetails.city}, ${deliveryDetails.state} - ${deliveryDetails.pincode}`;
+      const fullAddress = `${deliveryDetails.address}, ${deliveryDetails.city}, ${deliveryDetails.state}, ${deliveryDetails.country || ''} - ${deliveryDetails.pincode}`
+        .replace(/,\s+,/g, ', ')
+        .replace(/,\s+-/g, ' -')
+        .trim();
 
       const normalizedItems = checkoutSource === 'cart'
         ? cartItems.filter((item) => item?.id).map((item) => ({
@@ -111,11 +170,13 @@ const Payment = () => {
         : [{ product: String(product.id), quantity: buyNowQty }];
 
       const safeSubtotalAmount = subtotal > 0 ? subtotal : Number(product.price || 0) * buyNowQty;
-      const safeDeliveryCharge = safeSubtotalAmount >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_CHARGE;
-      const safeTotalAmount = safeSubtotalAmount + safeDeliveryCharge;
+      const safeDeliveryCharge = Number(offerPreview?.deliveryCharge ?? (safeSubtotalAmount >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_CHARGE));
+      const safeTotalAmount = Number(offerPreview?.payableAmount ?? (safeSubtotalAmount + safeDeliveryCharge));
 
       const orderPayload = {
         products: safeItems,
+        subtotalAmount: safeSubtotalAmount,
+        deliveryCharge: safeDeliveryCharge,
         totalAmount: safeTotalAmount,
         productName: checkoutSource === 'cart' && cartItems.length > 1
           ? `${cartItems[0].name} +${cartItems.length - 1} more`
@@ -124,9 +185,12 @@ const Payment = () => {
         username: user?.username || 'guest',
         address: fullAddress,
         mobileNumber: deliveryDetails.mobile,
+        gender: deliveryDetails.gender,
+        country: deliveryDetails.country,
         paymentAmount: safeTotalAmount,
         paymentStatus: 'PENDING',
         paymentMethod: 'Cash on Delivery',
+        couponCode: couponCode || undefined,
       };
 
       const response = await fetch(`${VITE_API_BASE_URL}/api/orders`, {
@@ -139,7 +203,18 @@ const Payment = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to create order: ${response.status}`);
+        let errorMessage = 'Failed to place order. Please try again.';
+        try {
+          const payload = await response.json();
+          if (payload?.details) {
+            errorMessage = String(payload.details);
+          } else if (payload?.error) {
+            errorMessage = String(payload.error);
+          }
+        } catch {
+          // Keep fallback message when response body is not JSON.
+        }
+        throw new Error(errorMessage);
       }
 
       const orderData = await response.json();
@@ -156,6 +231,7 @@ const Payment = () => {
       localStorage.removeItem('selected_quantity');
       localStorage.removeItem('delivery_details');
       localStorage.removeItem('checkout_source');
+      localStorage.removeItem('checkout_offer');
 
       const playSuccessFlow = async () => {
         if (!orderAnimData && !orderConfirmedAnimData) {
@@ -177,10 +253,10 @@ const Payment = () => {
 
       await playSuccessFlow();
     } catch (error) {
-      console.error('Payment error:', error);
+      console.error('Order placement error:', error);
       toast({
-        title: 'Payment Failed',
-        description: 'Failed to place order. Please try again.',
+        title: 'Order Failed',
+        description: error instanceof Error ? error.message : 'Failed to place order. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -195,7 +271,7 @@ const Payment = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 py-6 px-4 sm:px-6">
       {showSuccessFlow && (
-        <div className="fixed inset-0 z-[70] bg-white/95 backdrop-blur-sm flex items-center justify-center px-4">
+        <div className="fixed inset-0 z-[70] bg-white flex items-center justify-center px-4">
           <div className="w-full max-w-sm sm:max-w-md">
             {successStep === 'order' && orderAnimData ? (
               <Lottie animationData={orderAnimData} loop autoplay />
@@ -209,20 +285,26 @@ const Payment = () => {
       )}
       <div className="mx-auto w-full max-w-3xl">
         <div className="text-center mb-6">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">Payment</h1>
-          <p className="text-muted-foreground">Cash on Delivery only</p>
+          <h1 className="text-3xl md:text-4xl font-bold mb-2">Place Order</h1>
+          <p className="text-muted-foreground">Cash on Delivery (COD) only</p>
         </div>
 
         <Card className="p-5 sm:p-7 space-y-7 border-2 border-[#255c45] shadow-sm">
           <div className="space-y-4">
             <h2 className="text-xl font-bold">Order Details</h2>
-            <div className="flex items-center gap-3">
-              <img src={product.image} alt={product.name} className="w-14 h-14 rounded-lg object-cover border border-border" />
-              <div className="min-w-0">
-                <p className="font-semibold truncate">{product.name}</p>
-                <p className="text-sm text-muted-foreground">{product.type}</p>
-              </div>
-              <p className="ml-auto font-bold">₹{product.price}</p>
+            <div className="space-y-3">
+              {orderItemsForDisplay.map((item, index) => (
+                <div key={`${item.id}-${index}`} className="flex items-center gap-3">
+                  <img src={item.image} alt={item.name} className="w-14 h-14 rounded-lg object-cover border border-border" />
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate">{item.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {item.type} | Qty: {item.quantity}
+                    </p>
+                  </div>
+                  <p className="ml-auto font-bold">₹{item.unitPrice * item.quantity}</p>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -233,13 +315,17 @@ const Payment = () => {
                 Delivery Address
               </h3>
             </div>
-            <div className="text-sm space-y-1.5 bg-muted/30 p-4 rounded-lg">
+            <div className="text-sm space-y-1.5 rounded-lg border border-[#255c45] bg-muted/30 p-4">
               <p className="font-semibold">{deliveryDetails.name}</p>
               <p className="text-muted-foreground">{deliveryDetails.mobile}</p>
-              <p className="text-muted-foreground">{deliveryDetails.address}</p>
-              <p className="text-muted-foreground">
-                {deliveryDetails.city}, {deliveryDetails.state} - {deliveryDetails.pincode}
-              </p>
+              {deliveryDetails.gender ? (
+                <p className="text-muted-foreground">Gender: {deliveryDetails.gender}</p>
+              ) : null}
+              <p className="text-muted-foreground">Address: {deliveryDetails.address}</p>
+              <p className="text-muted-foreground">Country: {deliveryDetails.country}</p>
+              <p className="text-muted-foreground">State: {deliveryDetails.state}</p>
+              <p className="text-muted-foreground">City: {deliveryDetails.city}</p>
+              <p className="text-muted-foreground">Pincode: {deliveryDetails.pincode}</p>
             </div>
           </div>
 
@@ -262,21 +348,33 @@ const Payment = () => {
 
               <div className="flex items-center justify-between text-sm">
                 <p className="text-muted-foreground">Delivery Charges</p>
-                {deliveryCharge === 0 ? (
+                {effectiveDelivery === 0 ? (
                   <p className="font-semibold text-[#255c45] inline-flex items-center gap-2">
                     <span className="line-through text-muted-foreground">₹{DELIVERY_CHARGE}</span>
                     FREE
                   </p>
                 ) : (
-                  <p className="font-semibold">₹{deliveryCharge}</p>
+                  <p className="font-semibold">₹{effectiveDelivery}</p>
                 )}
               </div>
+
+              <div className="flex items-center justify-between text-sm">
+                <p className="text-muted-foreground">Discount</p>
+                <p className="font-semibold text-[#255c45]">-₹{effectiveDiscount}</p>
+              </div>
+
+              {offerPreview?.applied ? (
+                <div className="text-xs text-[#255c45] font-semibold">
+                  Applied: {offerPreview.applied.title}
+                  {offerPreview.applied.code ? ` (${offerPreview.applied.code})` : ''}
+                </div>
+              ) : null}
 
               <div className="h-px bg-border" />
 
               <div className="flex items-center justify-between">
                 <p className="font-semibold">Total Payable</p>
-                <p className="font-bold text-lg">₹{totalPayable}</p>
+                <p className="font-bold text-lg">₹{effectiveTotal}</p>
               </div>
             </div>
           </div>
@@ -285,7 +383,7 @@ const Payment = () => {
             <Button type="submit" className="w-full bg-gradient-hero hover:opacity-90" disabled={loading}>
               {loading
                 ? 'Placing order...'
-                : `Place Order (COD) - ₹${totalPayable}`}
+                : `Place Order (COD) - ₹${effectiveTotal}`}
             </Button>
           </form>
         </Card>

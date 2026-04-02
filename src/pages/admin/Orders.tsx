@@ -26,6 +26,8 @@ interface Order {
   username: string;
   address: string;
   mobileNumber: string;
+  gender?: string;
+  country?: string;
   paymentAmount: number;
   paymentStatus: string;
   startDate: string;
@@ -268,10 +270,12 @@ const AdminOrders = () => {
             <div className="p-8 text-center text-muted-foreground">Loading orders...</div>
           </Card>
         ) : filteredOrders.length === 0 ? (
-          <Card className="border-2 border-[#255c45]">
-            <div className="p-8 text-center text-muted-foreground">
-              {searchQuery ? 'No orders found matching your search' : 'No orders found'}
-            </div>
+          <Card className="w-full p-6 sm:p-8 text-center border-2 border-[#255c45]">
+            <ShoppingBag className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+            <h3 className="text-2xl font-bold mb-2">{searchQuery ? 'No matching orders' : 'No orders found'}</h3>
+            <p className="text-muted-foreground">
+              {searchQuery ? 'Try adjusting your search criteria.' : 'There are currently no orders.'}
+            </p>
           </Card>
         ) : (
           <div className="space-y-3">
@@ -311,6 +315,13 @@ const AdminOrders = () => {
                           )}
                           <p className="text-sm text-muted-foreground">User: {order.username}</p>
                           <p className="text-sm text-muted-foreground">Mobile: {order.mobileNumber}</p>
+                          {(order.gender || order.country) && (
+                            <p className="text-sm text-muted-foreground">
+                              {order.gender ? `Gender: ${order.gender}` : ''}
+                              {order.gender && order.country ? ' | ' : ''}
+                              {order.country ? `Country: ${order.country}` : ''}
+                            </p>
+                          )}
                           {hasMultipleItems && (
                             <button
                               type="button"

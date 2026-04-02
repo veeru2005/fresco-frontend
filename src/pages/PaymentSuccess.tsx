@@ -77,6 +77,16 @@ const PaymentSuccess = () => {
                       {'\n'}Mobile: {order.mobileNumber}
                     </>
                   )}
+                  {order.gender && (
+                    <>
+                      {'\n'}Gender: {order.gender}
+                    </>
+                  )}
+                  {order.country && (
+                    <>
+                      {'\n'}Country: {order.country}
+                    </>
+                  )}
                 </p>
               </div>
             </div>

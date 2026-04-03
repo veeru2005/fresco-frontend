@@ -24,10 +24,15 @@ interface Order {
     itemAmount?: number;
   }>;
   username: string;
+  fullName?: string;
   address: string;
+  deliveryAddress?: string;
   mobileNumber: string;
   gender?: string;
   country?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
   paymentAmount: number;
   paymentStatus: string;
   startDate: string;
@@ -71,7 +76,9 @@ const AdminOrders = () => {
         return (
           String(order.orderId || '').toLowerCase().includes(q) ||
           String(order.productName || '').toLowerCase().includes(q) ||
+          String(order.fullName || '').toLowerCase().includes(q) ||
           String(order.username || '').toLowerCase().includes(q) ||
+          String(order.deliveryAddress || order.address || '').toLowerCase().includes(q) ||
           String(order.mobileNumber || '').includes(searchQuery)
         );
       });
@@ -287,6 +294,8 @@ const AdminOrders = () => {
               const orderedItems = Array.isArray(order.orderedItems) ? order.orderedItems : [];
               const hasMultipleItems = orderedItems.length > 1;
               const isExpanded = expandedOrderIds.has(String(order.id));
+              const deliveryAddress = String(order.deliveryAddress || order.address || '').trim();
+              const cityStatePincode = [order.city, order.state, order.pincode].filter(Boolean).join(', ');
               const orderedItemsLabel = orderedItems
                 .map((item) => `${item.name} x${Math.max(1, Number(item.quantity || 1))}`)
                 .join(', ');
@@ -313,8 +322,16 @@ const AdminOrders = () => {
                           {orderedItems.length > 0 && (
                             <p className="text-sm text-muted-foreground truncate">Items: {orderedItemsLabel}</p>
                           )}
-                          <p className="text-sm text-muted-foreground">User: {order.username}</p>
+                          <p className="text-sm text-muted-foreground">User: {order.fullName || order.username}</p>
                           <p className="text-sm text-muted-foreground">Mobile: {order.mobileNumber}</p>
+                          {deliveryAddress && (
+                            <p className="text-sm text-muted-foreground break-words">
+                              Delivery Address: {deliveryAddress}
+                            </p>
+                          )}
+                          {cityStatePincode && (
+                            <p className="text-sm text-muted-foreground">Location: {cityStatePincode}</p>
+                          )}
                           {(order.gender || order.country) && (
                             <p className="text-sm text-muted-foreground">
                               {order.gender ? `Gender: ${order.gender}` : ''}

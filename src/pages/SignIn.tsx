@@ -162,18 +162,18 @@ const SignIn = () => {
   };
 
   return (
-    <div className="min-h-full flex items-start justify-center px-4 pt-6 sm:pt-8 bg-background sm:bg-gradient-to-br sm:from-primary/10 sm:via-background sm:to-secondary/10">
+    <div className="min-h-full flex items-start justify-center px-4 pb-24 pt-6 sm:pb-16 sm:pt-8 lg:pb-20 bg-background sm:bg-gradient-to-br sm:from-primary/10 sm:via-background sm:to-secondary/10">
       <div className="w-full max-w-[460px] mx-auto">
         <div className="flex items-center justify-center gap-3 mb-3">
           <div className="bg-amber-400 p-3 rounded-2xl shadow-sm">
-            <ShoppingCart className="w-7 h-7 text-[#2f7656]" />
+            <ShoppingCart className="w-7 h-7 text-[#255c45]" />
           </div>
-          <p className="text-2xl sm:text-3xl font-bold text-[#2f7656] leading-none">
+          <p className="text-2xl sm:text-3xl font-bold text-[#255c45] leading-none">
             Fresco <span className="text-amber-500 !text-2xl sm:!text-3xl !font-bold">Organics</span>
           </p>
         </div>
 
-        <Card className="w-full p-5 sm:p-7 shadow-xl border-2 border-[#2f7656] rounded-3xl">
+        <Card className="w-full rounded-3xl border-[2.5px] border-[#255c45] p-5 shadow-xl sm:p-7">
           <div className="flex flex-col items-center gap-4 sm:gap-5">
             <div className="text-center w-full">
               <h1 className="text-2xl sm:text-3xl font-bold">Login</h1>

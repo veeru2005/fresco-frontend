@@ -121,11 +121,17 @@ const SignUp = () => {
     return '/dashboard';
   }, [location.state, user]);
 
+  const getSafePostAuthRedirect = useCallback(() => {
+    const target = getPostAuthRedirect();
+    if (target === '/signin' || target === '/signup') return '/dashboard';
+    return target;
+  }, [getPostAuthRedirect]);
+
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(getPostAuthRedirect());
+      navigate(getSafePostAuthRedirect(), { replace: true });
     }
-  }, [getPostAuthRedirect, isAuthenticated, navigate]);
+  }, [getSafePostAuthRedirect, isAuthenticated, navigate]);
 
   useEffect(() => {
     fetch('/Login.json')
@@ -210,7 +216,7 @@ const SignUp = () => {
   }, [initializeGoogleButton]);
 
   const handleCompleteSignUp = async () => {
-    if (!pendingGoogleCredential) return;
+    if (!pendingGoogleCredential || loading) return;
 
     const profilePayload = {
       ...profileForm,
@@ -229,23 +235,35 @@ const SignUp = () => {
     }
 
     setLoading(true);
-  const result = await signInWithGoogle(pendingGoogleCredential, 'signup', profilePayload);
-    setLoading(false);
+    try {
+      const result = await signInWithGoogle(pendingGoogleCredential, 'signup', profilePayload);
 
-    if (result.success) {
-      toast({ title: 'Account ready', description: 'Signed up successfully.', variant: 'success' });
-      navigate(getPostAuthRedirect());
-    } else {
-      if (result.error?.toLowerCase().includes('mobile')) {
-         setMobileError(result.error);
-         toast({ title: 'Sign-Up Failed', description: 'Please provide a different mobile number.', variant: 'destructive' });
-      } else {
-        toast({ title: 'Sign-Up Failed', description: result.error || 'Please try again.', variant: 'destructive' });
-        // If the backend says account already exists (409), we might want to reset or redirect
-        if (result.error?.includes('Account already exists')) {
-           navigate('/signin');
-        }
+      if (result.success) {
+        toast({ title: 'Account ready', description: 'Signed up successfully.', variant: 'success' });
+        navigate(getSafePostAuthRedirect(), { replace: true });
+        return;
       }
+
+      if (result.error?.toLowerCase().includes('mobile')) {
+        setMobileError(result.error);
+        toast({ title: 'Sign-Up Failed', description: 'Please provide a different mobile number.', variant: 'destructive' });
+        return;
+      }
+
+      const errorMessage = result.error || 'Please try again.';
+      toast({ title: 'Sign-Up Failed', description: errorMessage, variant: 'destructive' });
+
+      if (errorMessage.toLowerCase().includes('account already exists')) {
+        navigate('/signin', { replace: true });
+      }
+    } catch {
+      toast({
+        title: 'Sign-Up Failed',
+        description: 'Something went wrong while completing signup. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
   };
 

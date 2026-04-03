@@ -86,10 +86,8 @@ const Navbar = () => {
   };
 
   const handleLogout = () => {
+    signOut();
     navigate('/', { replace: true });
-    window.setTimeout(() => {
-      signOut();
-    }, 0);
   };
 
   const navLinks = isAuthenticated

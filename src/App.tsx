@@ -3,12 +3,13 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Suspense, lazy, useEffect, useLayoutEffect, useRef } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { useAuth } from "@/contexts/AuthContext";
 
 const queryClient = new QueryClient();
 const SignIn = lazy(() => import("./pages/SignIn"));
@@ -31,6 +32,20 @@ const AdminCustomers = lazy(() => import("./pages/admin/Customers"));
 const AdminFeedback = lazy(() => import("./pages/admin/Feedback"));
 const Admins = lazy(() => import("./pages/admin/Admins"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+
+const RoleBasedHome = () => {
+  const { isAuthReady, isAuthenticated, user } = useAuth();
+
+  if (!isAuthReady) {
+    return <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">Loading...</div>;
+  }
+
+  if (isAuthenticated && (user?.isAdmin || user?.isSuperAdmin)) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  return <Dashboard />;
+};
 
 const AppContent = () => {
   const location = useLocation();
@@ -89,10 +104,10 @@ const AppContent = () => {
         <div key={`${location.pathname}${location.search}`} className="page-transition-enter">
           <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">Loading...</div>}>
             <Routes>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/" element={<RoleBasedHome />} />
               <Route path="/signin" element={<SignIn />} />
               <Route path="/signup" element={<SignUp />} />
-              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/dashboard" element={<RoleBasedHome />} />
               <Route path="/booking" element={<Booking />} />
               <Route path="/products" element={<Booking />} />
               <Route path="/cart" element={<Cart />} />

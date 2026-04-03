@@ -198,7 +198,7 @@ const SignUp = () => {
         size: 'large',
         width: 320,
         text: 'signup_with',
-        shape: 'pill',
+        shape: 'rectangular',
       });
 
       setGoogleReady(true);
@@ -367,10 +367,10 @@ const SignUp = () => {
                   </Select>
                 </div>
 
-                <div className="space-y-1.5 sm:col-span-2">
+                <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="address">Address *</Label>
-                  <p className="text-[11px] text-muted-foreground leading-tight">
-                    If you are a faculty member or student at KL University, please mention your cabin or room number.
+                  <p className="rounded-lg border border-[#255c45] bg-[#255c45]/15 px-3 py-2 text-xs leading-relaxed text-[#214f3b]">
+                    If you are a Faculty at KL University keep your cabin no, if you are a Student please specify a particular place to the delivery agent at delivery time.
                   </p>
                   <Textarea
                     id="address"
@@ -426,11 +426,6 @@ const SignUp = () => {
                     maxLength={6}
                     required
                   />
-                  <p className="text-[11px] text-muted-foreground leading-tight">
-                    {profileForm.city
-                      ? `Allowed pincode for ${profileForm.city}: ${getAllowedPincodesForCity(profileForm.city).join(', ') || 'N/A'}`
-                      : 'Select city first to see allowed pincode.'}
-                  </p>
                 </div>
               </div>
               
@@ -451,14 +446,15 @@ const SignUp = () => {
               <div className="w-full flex justify-center">
                 <div 
                   ref={googleButtonHostRef} 
-                  className={googleReady && !loading ? 'flex justify-center w-full max-w-[320px] rounded-full border-[2px] border-[#255c45] overflow-hidden shadow-lg' : 'absolute invisible'} 
+                  className={googleReady && !loading ? 'flex justify-center w-full max-w-[320px] rounded-2xl border-2 border-[#255c45] bg-white overflow-hidden shadow-md' : 'absolute invisible'} 
                 />
                 
                 {(!googleReady || loading) && (
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full max-w-[320px] h-12 sm:h-14 flex items-center justify-center gap-3 border-[2px] border-[#255c45] font-bold text-base sm:text-lg rounded-full shadow-lg hover:bg-muted"
+                    className="w-full max-w-[320px] h-12 sm:h-14 flex items-center justify-center gap-3 border-2 border-[#255c45] bg-white font-semibold text-base sm:text-lg rounded-2xl shadow-md hover:bg-emerald-50"
+                    style={{ fontFamily: 'Quicksand, sans-serif' }}
                     disabled={loading}
                     onClick={handleGoogleSignUpFallback}
                   >

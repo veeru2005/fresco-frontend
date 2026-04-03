@@ -143,7 +143,7 @@ const Booking = () => {
   };
 
   return (
-    <div className="min-h-screen py-6 pb-8 sm:py-16 md:py-10">
+    <div className="min-h-screen py-6 pb-12 sm:py-16 sm:pb-10 md:py-10 md:pb-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8 sm:mb-10">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
@@ -170,7 +170,7 @@ const Booking = () => {
             filteredProducts.map((product) => (
             <Card
               key={product.id}
-              className={`overflow-hidden border-2 border-[#2f7d5b] rounded-3xl transition-all duration-300 flex flex-col h-full ${
+              className={`w-[96%] mx-auto sm:w-full overflow-hidden border-2 border-[#2f7d5b] rounded-3xl transition-all duration-300 flex flex-col h-full ${
                 product.available ? 'hover:shadow-xl' : 'opacity-70 saturate-50'
               }`}
             >
@@ -185,32 +185,34 @@ const Booking = () => {
                 </div>
               </div>
 
-              <div className="p-6 flex flex-col flex-1">
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <h3 className="text-lg font-semibold leading-none break-words">{product.name}</h3>
-                  <span className="text-xl font-bold text-[#2f7d5b] whitespace-nowrap inline-flex items-baseline gap-1 leading-none">
+              <div className="px-5 py-6 flex flex-col flex-1">
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="min-w-0">
+                    <h3 className="text-base font-semibold leading-snug break-words">{product.name}</h3>
+                  </div>
+                  <span className="shrink-0 text-lg font-bold text-[#2f7d5b] whitespace-nowrap inline-flex items-baseline gap-1 leading-none">
                     ₹{Number(product.price || 0)}
-                    <span className="text-base font-semibold text-muted-foreground">/{(product as any).unit || 'kg'}</span>
+                    <span className="text-sm font-semibold text-muted-foreground">/{(product as any).unit || 'kg'}</span>
                   </span>
                 </div>
 
-                <p className="text-muted-foreground text-sm mb-3 min-h-[60px] leading-relaxed">
+                <p className="text-muted-foreground text-sm mb-auto min-h-[60px] leading-relaxed">
                   {product.description}
                 </p>
 
-                <div className={`flex items-center justify-between border rounded-md px-3 py-2 mb-2 ${product.available ? '' : 'bg-muted/60'}`}>
+                <div className={`mt-3 mx-auto w-[92%] flex items-center justify-between border border-foreground rounded-lg px-2.5 py-1.5 mb-2 bg-white ${product.available ? '' : 'bg-muted/60 opacity-60'}`}>
                   <button
                     type="button"
-                    className="text-lg text-muted-foreground disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="text-xl font-semibold text-foreground px-2 py-0.5 flex items-center justify-center leading-none disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 rounded-sm transition-colors"
                     onClick={() => setProductQty(product.id, -1)}
                     disabled={!product.available}
                   >
                     -
                   </button>
-                  <span className="font-semibold">{qty[product.id] || 1}</span>
+                  <span className="font-semibold text-base text-slate-700 min-w-[2ch] text-center">{qty[product.id] || 1}</span>
                   <button
                     type="button"
-                    className="text-lg text-muted-foreground disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="text-xl font-semibold text-foreground px-2 py-0.5 flex items-center justify-center leading-none disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 rounded-sm transition-colors"
                     onClick={() => setProductQty(product.id, 1)}
                     disabled={!product.available}
                   >
@@ -218,18 +220,18 @@ const Booking = () => {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 mt-2">
+                <div className="grid grid-cols-2 gap-3 mt-1 mx-auto w-[92%]">
                   <Button
                     onClick={() => handleAddToCart(product)}
                     disabled={!product.available}
-                    className="bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed"
+                    className="w-full bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed"
                   >
                     Cart
                   </Button>
                   <Button
                     onClick={() => handleBuyNow(product)}
                     disabled={!product.available}
-                    className="bg-amber-500 hover:bg-amber-600 text-slate-900 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed"
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed"
                   >
                     Buy Now
                   </Button>

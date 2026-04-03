@@ -265,10 +265,10 @@ const Profile = () => {
                   </Select>
                 </div>
 
-                <div className="space-y-1.5 sm:col-span-2">
+                <div className="space-y-2 sm:col-span-2">
                   <Label htmlFor="profile-address">Address *</Label>
-                  <p className="text-[11px] text-muted-foreground leading-tight">
-                    If you are a faculty member or student at KL University, please mention your cabin or room number.
+                  <p className="rounded-lg border border-[#255c45] bg-[#255c45]/15 px-3 py-2 text-xs leading-relaxed text-[#214f3b]">
+                    If you are a Faculty at KL University keep your cabin no, if you are a Student please specify a particular place to the delivery agent at delivery time.
                   </p>
                   <Textarea
                     id="profile-address"
@@ -328,11 +328,6 @@ const Profile = () => {
                     disabled={!isEditing}
                     required
                   />
-                  <p className="text-[11px] text-muted-foreground leading-tight">
-                    {formData.city
-                      ? `Allowed pincode for ${formData.city}: ${getAllowedPincodesForCity(formData.city).join(', ') || 'N/A'}`
-                      : 'Select city first to see allowed pincode.'}
-                  </p>
                 </div>
               </div>
 

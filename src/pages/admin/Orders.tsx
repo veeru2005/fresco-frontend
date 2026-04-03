@@ -247,7 +247,7 @@ const AdminOrders = () => {
 
   return (
     <ErrorBoundary>
-      <div className="container mx-auto px-4 py-8 lg:pb-20">
+      <div className="container mx-auto px-4 pt-8 pb-12 sm:pb-10 lg:pb-20">
         <div className="mb-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>

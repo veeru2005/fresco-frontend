@@ -132,7 +132,7 @@ const SignIn = () => {
           size: 'large',
           width: 320,
           text: 'signin_with',
-          shape: 'pill',
+          shape: 'rectangular',
         });
         setGoogleReady(true);
         setGoogleUnavailableReason('Google button is still loading. Please try again in a moment.');
@@ -194,14 +194,15 @@ const SignIn = () => {
               <div className="w-full flex justify-center">
                 <div 
                   ref={googleButtonHostRef} 
-                  className={googleReady && !loading ? 'flex justify-center w-full max-w-[320px] rounded-full border-[2px] border-[#255c45] overflow-hidden shadow-lg' : 'absolute invisible'} 
+                  className={googleReady && !loading ? 'flex justify-center w-full max-w-[320px] rounded-2xl border-2 border-[#255c45] bg-white overflow-hidden shadow-md' : 'absolute invisible'} 
                 />
                 
                 {(!googleReady || loading) && (
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full max-w-[320px] h-12 sm:h-14 flex items-center justify-center gap-3 border-[2px] border-[#255c45] font-bold text-base sm:text-lg rounded-full shadow-lg hover:bg-muted"
+                    className="w-full max-w-[320px] h-12 sm:h-14 flex items-center justify-center gap-3 border-2 border-[#255c45] bg-white font-semibold text-base sm:text-lg rounded-2xl shadow-md hover:bg-emerald-50"
+                    style={{ fontFamily: 'Quicksand, sans-serif' }}
                     disabled={loading}
                     onClick={handleGoogleSignInFallback}
                   >

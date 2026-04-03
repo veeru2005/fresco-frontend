@@ -26,7 +26,7 @@ export const getAllowedPincodesForCity = (city: string): string[] => {
 export const isAllowedPincodeForCity = (city: string, pincode: string): boolean => {
   const normalizedPincode = String(pincode || '').trim();
   if (!normalizedPincode) return false;
-  return getAllowedPincodesForCity(city).includes(normalizedPincode);
+  return true; // Pincode restriction removed, any valid 6-digit pin is allowed
 };
 
 export type DeliveryAddressLike = {

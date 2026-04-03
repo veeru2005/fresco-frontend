@@ -12,7 +12,7 @@ import { Product } from '@/data/mockData';
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 import { Search, Trash2, PackageSearch } from 'lucide-react';
 
-const UNIT_OPTIONS = ['kg', 'gm', 'dozen', 'liter', 'ml'];
+const UNIT_OPTIONS = ['kg', 'gm', 'dozen', 'half dozen', 'liter', 'ml'];
 const MAX_IMAGE_UPLOAD_BYTES = 1024 * 1024;
 const TARGET_IMAGE_UPLOAD_BYTES = 950 * 1024;
 
@@ -403,7 +403,7 @@ const AdminProducts = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 lg:pb-20">
+    <div className="container mx-auto px-4 pt-8 pb-12 sm:pb-10 lg:pb-20">
       <div className="mb-6">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
@@ -431,7 +431,7 @@ const AdminProducts = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
         {filteredProducts.map(product => (
-          <Card key={product.id} className="overflow-hidden border-2 border-[#255c45] rounded-3xl transition-all duration-300 hover:shadow-xl flex flex-col h-full">
+          <Card key={product.id} className="w-[96%] mx-auto sm:w-full overflow-hidden border-2 border-[#255c45] rounded-3xl transition-all duration-300 hover:shadow-xl flex flex-col h-full">
             <div className="relative">
               <img
                 src={product.image}
@@ -448,21 +448,21 @@ const AdminProducts = () => {
             <div className={`p-6 flex flex-col flex-1 ${canManageProducts ? '' : 'pb-3'}`}>
               <div className="mb-3 flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="font-semibold text-lg leading-snug break-words !text-[1.15rem]">{product.name || 'N/A'}</h3>
+                  <h3 className="font-semibold text-base leading-snug break-words">{product.name || 'N/A'}</h3>
                 </div>
-                <p className="shrink-0 font-bold text-[#255c45] !text-[1.35rem] leading-none inline-flex items-baseline gap-1">
+                <p className="shrink-0 font-bold text-[#255c45] text-lg leading-none inline-flex items-baseline gap-1">
                   ₹{Number(product.price || 0)}
-                  <span className="text-muted-foreground font-semibold !text-[1.2rem]">/{(product as any).unit || 'kg'}</span>
+                  <span className="text-muted-foreground font-semibold text-sm">/{(product as any).unit || 'kg'}</span>
                 </p>
               </div>
               <p
-                className={`text-sm !text-[0.9rem] mb-2 line-clamp-3 text-muted-foreground leading-relaxed ${
+                className={`text-sm !text-[0.9rem] mb-auto line-clamp-3 text-muted-foreground leading-relaxed ${
                   canManageProducts ? 'min-h-[64px]' : 'min-h-[40px]'
                 }`}
               >
                 {product.description || 'No description available'}
               </p>
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 mt-4">
                 {canManageProducts ? (
                   <>
                     <div className="grid grid-cols-2 gap-2">
@@ -543,7 +543,7 @@ const AdminProducts = () => {
                   id="unit"
                   value={formData.unit}
                   onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                  className="w-full h-12 rounded-xl sm:rounded-2xl border-2 border-[#255c45] bg-background px-4 text-sm outline-none focus-visible:ring-0 focus-visible:border-[#255c45]"
+                  className="w-full h-12 appearance-none rounded-xl sm:rounded-2xl border-2 border-[#255c45] bg-white px-4 pr-10 text-sm shadow-sm transition-colors focus:outline-none focus:border-[#255c45] focus:ring-0 bg-no-repeat bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20fill=%22none%22%20viewBox=%220%200%2024%2024%22%20stroke-width=%222%22%20stroke=%22%23255c45%22%3E%3Cpath%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%20d=%22M19.5%208.25l-7.5%207.5-7.5-7.5%22%20/%3E%3C/svg%3E')] bg-[position:right_1rem_center] bg-[length:1.25rem_1.25rem]"
                 >
                   {UNIT_OPTIONS.map((unit) => (
                     <option key={unit} value={unit}>{unit}</option>

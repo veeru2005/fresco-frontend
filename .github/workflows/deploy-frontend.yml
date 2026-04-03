@@ -34,24 +34,29 @@ jobs:
               exit 1
             fi
 
-            mkdir -p /var/www/fresco
+            mkdir -p /var/www/fresco/frontend/dist
 
-            if [ ! -d /var/www/fresco/frontend-src/.git ]; then
-              rm -rf /var/www/fresco/frontend-src
-              git clone https://github.com/veeru2005/fresco-frontend.git /var/www/fresco/frontend-src
-            fi
+            BUILD_DIR="$(mktemp -d /tmp/fresco-frontend-XXXXXX)"
+            cleanup() {
+              rm -rf "$BUILD_DIR"
+            }
+            trap cleanup EXIT
 
-            cd /var/www/fresco/frontend-src
-            git fetch origin main
-            git checkout main
-            git pull --ff-only origin main
+            git clone --depth 1 --branch main https://github.com/veeru2005/fresco-frontend.git "$BUILD_DIR"
+            cd "$BUILD_DIR"
 
             # Vite requires environment variables at build time.
             echo "${{ secrets.FRONTEND_ENV_FILE }}" > .env
-            npm install
+            if [ -f package-lock.json ]; then
+              npm ci
+            else
+              npm install
+            fi
             npm run build
             rm -f .env
 
-            mkdir -p /var/www/fresco/frontend/dist
-            rm -rf /var/www/fresco/frontend/dist/*
+            find /var/www/fresco/frontend/dist -mindepth 1 -maxdepth 1 -exec rm -rf {} +
             cp -R dist/. /var/www/fresco/frontend/dist/
+
+            # Remove legacy source folder from older workflow versions.
+            rm -rf /var/www/fresco/frontend-src

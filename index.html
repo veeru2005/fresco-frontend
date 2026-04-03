@@ -11,22 +11,17 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- ✅ FIX 1: Added site_name -->
+    
     <meta property="og:site_name" content="Fresco Organics" />
 
-    <!-- ✅ FIX 2: Added locale -->
     <meta property="og:locale" content="en_US" />
 
-    <!-- OG TAGS -->
     <meta property="og:title" content="Fresco Organics - Fresh Organic Fruits and Vegetables" />
     <meta property="og:description" content="Farm-fresh produce delivered quickly with trusted quality and transparent sourcing." />
     <meta property="og:type" content="website" />
 
-    <!-- ✅ FIX 3: Ensure trailing slash -->
     <meta property="og:url" content="https://frescoo.tech/" />
 
-    <!-- ✅ FIX 4: Ensure absolute PUBLIC image -->
     <meta property="og:image" content="https://frescoo.tech/og-image.png" />
     <meta property="og:image:type" content="image/png" />
 
@@ -40,11 +35,6 @@
 
   <body>
     <div id="root"></div>
-
-    <!-- ⚠️ IMPORTANT NOTE (NOT A CODE FIX)
-         This is still SPA. Telegram DOES NOT run this JS.
-         If preview fails → problem is NOT here, it's server/rendering.
-    -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -4,15 +4,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { getGoogleClientIdForCurrentOrigin, getGoogleOriginConfigMessage } from '@/lib/googleAuth';
 import { ShoppingCart } from 'lucide-react';
 import Lottie from 'lottie-react';
 
 const GOOGLE_SCRIPT_ID = 'google-identity-script';
-
-const isValidGoogleClientId = (clientId?: string) =>
-  !!clientId &&
-  clientId.endsWith('.apps.googleusercontent.com') &&
-  !clientId.includes('YOUR_GOOGLE_OAUTH_CLIENT_ID');
 
 const ensureGoogleScript = () =>
   new Promise<void>((resolve, reject) => {
@@ -46,6 +42,7 @@ const SignIn = () => {
   const [loading, setLoading] = useState(false);
   const googleButtonHostRef = useRef<HTMLDivElement | null>(null);
   const [googleReady, setGoogleReady] = useState(false);
+  const [googleUnavailableReason, setGoogleUnavailableReason] = useState('Google button is still loading. Please try again in a moment.');
   const { signInWithGoogle, isAuthenticated, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -87,8 +84,12 @@ const SignIn = () => {
   }, []);
 
   useEffect(() => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!isValidGoogleClientId(clientId)) return;
+    const clientId = getGoogleClientIdForCurrentOrigin();
+    if (!clientId) {
+      setGoogleReady(false);
+      setGoogleUnavailableReason(getGoogleOriginConfigMessage());
+      return;
+    }
 
     let isMounted = true;
     ensureGoogleScript()
@@ -134,9 +135,11 @@ const SignIn = () => {
           shape: 'pill',
         });
         setGoogleReady(true);
+        setGoogleUnavailableReason('Google button is still loading. Please try again in a moment.');
       })
       .catch(() => {
         setGoogleReady(false);
+        setGoogleUnavailableReason('Google sign-in failed to initialize. Please check your network and OAuth origin settings.');
       });
 
     return () => {
@@ -148,7 +151,7 @@ const SignIn = () => {
     if (!googleReady) {
       toast({
         title: 'Google Sign-In Unavailable',
-        description: 'Google button is still loading. Please try again in a moment.',
+        description: googleUnavailableReason,
         variant: 'destructive',
       });
       return;

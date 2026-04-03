@@ -18,13 +18,9 @@ import {
   isAllowedPincodeForCity,
   isAllowedServiceLocation,
 } from '@/lib/locationOptions';
+import { getGoogleClientIdForCurrentOrigin, getGoogleOriginConfigMessage } from '@/lib/googleAuth';
 
 const GOOGLE_SCRIPT_ID = 'google-identity-script';
-
-const isValidGoogleClientId = (clientId?: string) =>
-  !!clientId &&
-  clientId.endsWith('.apps.googleusercontent.com') &&
-  !clientId.includes('YOUR_GOOGLE_OAUTH_CLIENT_ID');
 
 const ensureGoogleScript = () =>
   new Promise<void>((resolve, reject) => {
@@ -86,6 +82,7 @@ const SignUp = () => {
   const [pendingGoogleCredential, setPendingGoogleCredential] = useState<string | null>(null);
   const googleButtonHostRef = useRef<HTMLDivElement | null>(null);
   const [googleReady, setGoogleReady] = useState(false);
+  const [googleUnavailableReason, setGoogleUnavailableReason] = useState('Google button is still loading. Please try again in a moment.');
   const [profileForm, setProfileForm] = useState({
     fullName: '',
     mobileNumber: '',
@@ -165,9 +162,10 @@ const SignUp = () => {
   );
 
   const initializeGoogleButton = useCallback(async () => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!isValidGoogleClientId(clientId)) {
+    const clientId = getGoogleClientIdForCurrentOrigin();
+    if (!clientId) {
       setGoogleReady(false);
+      setGoogleUnavailableReason(getGoogleOriginConfigMessage());
       return false;
     }
 
@@ -198,9 +196,11 @@ const SignUp = () => {
       });
 
       setGoogleReady(true);
+      setGoogleUnavailableReason('Google button is still loading. Please try again in a moment.');
       return true;
     } catch {
       setGoogleReady(false);
+      setGoogleUnavailableReason('Google sign-up failed to initialize. Please check your network and OAuth origin settings.');
       return false;
     }
   }, [handleGoogleCredential]);
@@ -254,7 +254,7 @@ const SignUp = () => {
     if (!ready) {
       toast({
         title: 'Google Sign-Up Unavailable',
-        description: 'Google button is still loading. Please try again in a moment.',
+        description: googleUnavailableReason,
         variant: 'destructive',
       });
       return;

@@ -191,13 +191,19 @@ const SignIn = () => {
             </div>
 
             <div className="flex flex-col items-center w-full gap-4 sm:gap-5">
-              <div className="relative w-full">
+              <div className="relative w-full flex justify-center min-h-[56px] rounded-xl overflow-hidden">
+                <div
+                  ref={googleButtonHostRef}
+                  className="absolute inset-0 flex items-center justify-center z-10 [&>div]:w-full [&>div>iframe]:w-full"
+                  style={{ opacity: googleReady ? 1 : 0, pointerEvents: googleReady ? 'auto' : 'none' }}
+                />
+                
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full h-12 sm:h-14 flex items-center justify-center gap-3 border-2 border-[#255c45] hover:bg-muted font-bold text-base sm:text-lg rounded-xl shadow-lg"
+                  className={`w-full max-w-[320px] h-12 sm:h-14 flex items-center justify-center gap-3 border-2 border-[#255c45] font-bold text-base sm:text-lg rounded-xl shadow-lg transition-opacity duration-300 ${googleReady ? 'opacity-0 z-0' : 'opacity-100 z-20 hover:bg-muted'}`}
+                  disabled={loading || googleReady}
                   onClick={handleGoogleSignInFallback}
-                  disabled={loading}
                 >
                   <svg className="w-6 h-6" viewBox="0 0 24 24" aria-hidden="true">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -207,16 +213,6 @@ const SignIn = () => {
                   </svg>
                   {loading ? 'Signing in...' : 'Sign in with Google'}
                 </Button>
-                <div
-                  ref={googleButtonHostRef}
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    opacity: 0,
-                    pointerEvents: googleReady ? 'auto' : 'none',
-                  }}
-                  aria-hidden="true"
-                />
               </div>
 
               <p className="text-center text-sm text-muted-foreground">

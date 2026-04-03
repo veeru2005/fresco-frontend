@@ -194,14 +194,14 @@ const SignIn = () => {
               <div className="w-full flex justify-center">
                 <div 
                   ref={googleButtonHostRef} 
-                  className={googleReady && !loading ? 'flex justify-center w-full' : 'absolute invisible'} 
+                  className={googleReady && !loading ? 'flex justify-center w-full max-w-[320px] rounded-full border-[2px] border-[#255c45] overflow-hidden shadow-lg' : 'absolute invisible'} 
                 />
                 
                 {(!googleReady || loading) && (
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full max-w-[320px] h-12 sm:h-14 flex items-center justify-center gap-3 border-2 border-[#255c45] font-bold text-base sm:text-lg rounded-xl shadow-lg hover:bg-muted"
+                    className="w-full max-w-[320px] h-12 sm:h-14 flex items-center justify-center gap-3 border-[2px] border-[#255c45] font-bold text-base sm:text-lg rounded-full shadow-lg hover:bg-muted"
                     disabled={loading}
                     onClick={handleGoogleSignInFallback}
                   >

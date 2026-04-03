@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -11,11 +11,12 @@ import { useToast } from '@/hooks/use-toast';
 import { ShoppingCart } from 'lucide-react';
 import Lottie from 'lottie-react';
 import {
-  ALL_COUNTRIES,
-  findCountryByName,
-  findStateByName,
-  getCitiesByCountryAndStateName,
-  getStatesByCountryName,
+  ALLOWED_SERVICE_LOCATIONS,
+  DEFAULT_COUNTRY,
+  DEFAULT_STATE,
+  getAllowedPincodesForCity,
+  isAllowedPincodeForCity,
+  isAllowedServiceLocation,
 } from '@/lib/locationOptions';
 
 const GOOGLE_SCRIPT_ID = 'google-identity-script';
@@ -65,11 +66,17 @@ const getProfileValidationError = (profile: {
   if (!profile.fullName.trim()) return 'Please enter your full name.';
   if (!/^\d{10}$/.test(profile.mobileNumber.trim())) return 'Please enter a valid 10-digit mobile number.';
   if (!profile.address.trim()) return 'Please enter your address.';
-  if (!profile.city.trim()) return 'Please enter your city.';
-  if (!profile.state.trim()) return 'Please enter your state.';
+  if (!isAllowedServiceLocation(profile.city)) return 'Please select city from the allowed locations.';
+  if (profile.state.trim() !== DEFAULT_STATE) return 'State must be Andhra Pradesh.';
   if (!/^\d{6}$/.test(profile.pincode.trim())) return 'Please enter a valid 6-digit pincode.';
+  if (!isAllowedPincodeForCity(profile.city, profile.pincode)) {
+    const allowed = getAllowedPincodesForCity(profile.city);
+    return allowed.length
+      ? `Pincode must be ${allowed.join(', ')} for ${profile.city}.`
+      : 'Selected city is not serviceable.';
+  }
   if (!profile.gender.trim()) return 'Please select your gender.';
-  if (!profile.country.trim()) return 'Please enter your country.';
+  if (profile.country.trim() !== DEFAULT_COUNTRY) return 'Country must be India.';
   return null;
 };
 
@@ -84,10 +91,10 @@ const SignUp = () => {
     mobileNumber: '',
     address: '',
     city: '',
-    state: '',
+    state: DEFAULT_STATE,
     pincode: '',
     gender: '',
-    country: '',
+    country: DEFAULT_COUNTRY,
   });
   const [mobileError, setMobileError] = useState<string | null>(null);
 
@@ -205,7 +212,13 @@ const SignUp = () => {
   const handleCompleteSignUp = async () => {
     if (!pendingGoogleCredential) return;
 
-    const validationError = getProfileValidationError(profileForm);
+    const profilePayload = {
+      ...profileForm,
+      country: DEFAULT_COUNTRY,
+      state: DEFAULT_STATE,
+    };
+
+    const validationError = getProfileValidationError(profilePayload);
     if (validationError) {
       toast({
         title: 'Profile details required',
@@ -216,7 +229,7 @@ const SignUp = () => {
     }
 
     setLoading(true);
-    const result = await signInWithGoogle(pendingGoogleCredential, 'signup', profileForm);
+  const result = await signInWithGoogle(pendingGoogleCredential, 'signup', profilePayload);
     setLoading(false);
 
     if (result.success) {
@@ -249,25 +262,6 @@ const SignUp = () => {
 
     const googleObj = (window as any).google;
     googleObj?.accounts?.id?.prompt?.();
-  };
-
-  const hasMatchedCountry = useMemo(() => Boolean(findCountryByName(profileForm.country)), [profileForm.country]);
-  const states = useMemo(() => getStatesByCountryName(profileForm.country), [profileForm.country]);
-  const hasMatchedState = useMemo(
-    () => Boolean(findStateByName(profileForm.country, profileForm.state)),
-    [profileForm.country, profileForm.state]
-  );
-  const cities = useMemo(
-    () => getCitiesByCountryAndStateName(profileForm.country, profileForm.state),
-    [profileForm.country, profileForm.state]
-  );
-
-  const onCountryChange = (value: string) => {
-    setProfileForm((prev) => ({ ...prev, country: value, state: '', city: '' }));
-  };
-
-  const onStateChange = (value: string) => {
-    setProfileForm((prev) => ({ ...prev, state: value, city: '' }));
   };
 
   return (
@@ -357,11 +351,14 @@ const SignUp = () => {
 
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="address">Address *</Label>
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    If you are a faculty member or student at KL University, please mention your cabin or room number.
+                  </p>
                   <Textarea
                     id="address"
                     value={profileForm.address}
                     onChange={(e) => setProfileForm((prev) => ({ ...prev, address: e.target.value }))}
-                    placeholder="Enter your complete address"
+                    placeholder="Enter your full address"
                     rows={3}
                     required
                   />
@@ -369,54 +366,27 @@ const SignUp = () => {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="country">Country *</Label>
-                  <Select value={profileForm.country || undefined} onValueChange={onCountryChange}>
-                    <SelectTrigger id="country" className="h-10 border-[#255c45]">
-                      <SelectValue placeholder="Select country" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-72 rounded-xl border-[#255c45] bg-white">
-                      {ALL_COUNTRIES.map((country) => (
-                        <SelectItem key={country.isoCode} value={country.name}>
-                          {country.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input id="country" value={DEFAULT_COUNTRY} disabled readOnly className="h-10 border-[#255c45] disabled:bg-slate-50" />
                 </div>
 
                 <div className="space-y-1.5">
                   <Label htmlFor="state">State *</Label>
-                  <Select
-                    value={profileForm.state || undefined}
-                    onValueChange={onStateChange}
-                    disabled={!hasMatchedCountry}
-                  >
-                    <SelectTrigger id="state" className="h-10 border-[#255c45] disabled:bg-slate-50">
-                      <SelectValue placeholder={hasMatchedCountry ? 'Select state' : 'Select country first'} />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-72 w-[var(--radix-select-trigger-width)] rounded-xl border-[#255c45] bg-white sm:w-auto sm:min-w-[var(--radix-select-trigger-width)]">
-                      {states.map((state) => (
-                        <SelectItem key={`${state.countryCode}-${state.isoCode}`} value={state.name} className="truncate">
-                          {state.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input id="state" value={DEFAULT_STATE} disabled readOnly className="h-10 border-[#255c45] disabled:bg-slate-50" />
                 </div>
 
                 <div className="space-y-1.5">
                   <Label htmlFor="city">City *</Label>
                   <Select
                     value={profileForm.city || undefined}
-                    onValueChange={(value) => setProfileForm((prev) => ({ ...prev, city: value }))}
-                    disabled={!hasMatchedState}
+                    onValueChange={(value) => setProfileForm((prev) => ({ ...prev, city: value, pincode: '' }))}
                   >
-                    <SelectTrigger id="city" className="h-10 border-[#255c45] disabled:bg-slate-50">
-                      <SelectValue placeholder={hasMatchedState ? 'Select city' : 'Select state first'} />
+                    <SelectTrigger id="city" className="h-10 border-[#255c45]">
+                      <SelectValue placeholder="Select city" />
                     </SelectTrigger>
                     <SelectContent className="max-h-72 rounded-xl border-[#255c45] bg-white">
-                      {cities.map((city) => (
-                        <SelectItem key={`${city.name}-${city.latitude}-${city.longitude}`} value={city.name}>
-                          {city.name}
+                      {ALLOWED_SERVICE_LOCATIONS.map((location) => (
+                        <SelectItem key={location} value={location}>
+                          {location}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -438,6 +408,11 @@ const SignUp = () => {
                     maxLength={6}
                     required
                   />
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    {profileForm.city
+                      ? `Allowed pincode for ${profileForm.city}: ${getAllowedPincodesForCity(profileForm.city).join(', ') || 'N/A'}`
+                      : 'Select city first to see allowed pincode.'}
+                  </p>
                 </div>
               </div>
               

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { MapPin } from 'lucide-react';
 import { clearCart, removeFromCart } from '@/lib/cart';
+import { formatCityStatePincode } from '@/lib/locationOptions';
 import { previewOffers, type OfferPreviewResponse } from '@/lib/offers';
 import Lottie from 'lottie-react';
 
@@ -153,10 +154,29 @@ const Payment = () => {
     try {
       await new Promise((resolve) => setTimeout(resolve, 1200));
       const token = localStorage.getItem('fresco_token');
-      const fullAddress = `${deliveryDetails.address}, ${deliveryDetails.city}, ${deliveryDetails.state}, ${deliveryDetails.country || ''} - ${deliveryDetails.pincode}`
-        .replace(/,\s+,/g, ', ')
-        .replace(/,\s+-/g, ' -')
-        .trim();
+      const addressLine = String(deliveryDetails.address || '').trim();
+      const cityStatePincodeLine = formatCityStatePincode(
+        String(deliveryDetails.city || ''),
+        String(deliveryDetails.state || ''),
+        String(deliveryDetails.pincode || '')
+      );
+      const fullAddress = [
+        addressLine,
+        cityStatePincodeLine,
+        String(deliveryDetails.country || '').trim(),
+      ]
+        .filter(Boolean)
+        .join('\n');
+      const normalizedDeliveryDetails = {
+        name: String(deliveryDetails.name || '').trim(),
+        mobile: String(deliveryDetails.mobile || '').trim(),
+        gender: String(deliveryDetails.gender || '').trim(),
+        address: addressLine,
+        city: String(deliveryDetails.city || '').trim(),
+        state: String(deliveryDetails.state || '').trim(),
+        pincode: String(deliveryDetails.pincode || '').trim(),
+        country: String(deliveryDetails.country || '').trim(),
+      };
 
       const normalizedItems = checkoutSource === 'cart'
         ? cartItems.filter((item) => item?.id).map((item) => ({
@@ -235,7 +255,7 @@ const Payment = () => {
 
       const playSuccessFlow = async () => {
         if (!orderAnimData && !orderConfirmedAnimData) {
-          navigate('/payment-success', { state: { order: orderData } });
+          navigate('/payment-success', { state: { order: orderData, deliveryDetails: normalizedDeliveryDetails } });
           return;
         }
 
@@ -248,7 +268,7 @@ const Payment = () => {
         setSuccessStep('confirmed');
         await wait(3000);
 
-        navigate('/payment-success', { state: { order: orderData } });
+        navigate('/payment-success', { state: { order: orderData, deliveryDetails: normalizedDeliveryDetails } });
       };
 
       await playSuccessFlow();
@@ -267,6 +287,12 @@ const Payment = () => {
   if (!product || !deliveryDetails) {
     return null;
   }
+
+  const deliveryCityStatePincodeLine = formatCityStatePincode(
+    String(deliveryDetails.city || ''),
+    String(deliveryDetails.state || ''),
+    String(deliveryDetails.pincode || '')
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 py-6 px-4 sm:px-6">
@@ -322,10 +348,10 @@ const Payment = () => {
                 <p className="text-muted-foreground">Gender: {deliveryDetails.gender}</p>
               ) : null}
               <p className="text-muted-foreground">Address: {deliveryDetails.address}</p>
+              {deliveryCityStatePincodeLine ? (
+                <p className="text-muted-foreground">{deliveryCityStatePincodeLine}</p>
+              ) : null}
               <p className="text-muted-foreground">Country: {deliveryDetails.country}</p>
-              <p className="text-muted-foreground">State: {deliveryDetails.state}</p>
-              <p className="text-muted-foreground">City: {deliveryDetails.city}</p>
-              <p className="text-muted-foreground">Pincode: {deliveryDetails.pincode}</p>
             </div>
           </div>
 

@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 const AdminHome = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const isSuperAdmin = user?.role === 'super-admin';
@@ -37,17 +37,17 @@ const AdminHome = () => {
     isPublic: false,
   });
 
-  const loadDashboardStats = useCallback(async () => {
+  const loadDashboardStats = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     try {
       const token = localStorage.getItem('fresco_token');
       const res = await fetch(`${VITE_API_BASE_URL}/api/admin/dashboard-stats`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
+        cache: 'no-store',
       });
 
       if (!res.ok) {
         if (res.status === 400 || res.status === 401) {
-          localStorage.removeItem('fresco_token');
-          localStorage.removeItem('fresco_user');
+          signOut();
           toast({
             title: 'Session expired',
             description: 'Please sign in again to continue.',
@@ -68,16 +68,41 @@ const AdminHome = () => {
       setFeedbackCount(Number(data.feedbackCount || 0));
     } catch (error) {
       console.error('Error loading admin dashboard stats:', error);
-      toast({
-        title: 'Dashboard load failed',
-        description: 'Could not fetch latest counts and feedback.',
-        variant: 'destructive',
-      });
+      if (!silent) {
+        toast({
+          title: 'Dashboard load failed',
+          description: 'Could not fetch latest counts and feedback.',
+          variant: 'destructive',
+        });
+      }
     }
-  }, [navigate, toast]);
+  }, [navigate, signOut, toast]);
 
   useEffect(() => {
     loadDashboardStats();
+
+    const refreshOnFocus = () => {
+      loadDashboardStats({ silent: true });
+    };
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        loadDashboardStats({ silent: true });
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      loadDashboardStats({ silent: true });
+    }, 15000);
+
+    window.addEventListener('focus', refreshOnFocus);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, [loadDashboardStats]);
 
   const loadOfferData = useCallback(async () => {

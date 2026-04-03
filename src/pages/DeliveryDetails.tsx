@@ -9,11 +9,13 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, ArrowRight, MapPin } from 'lucide-react';
 import {
-  ALL_COUNTRIES,
-  findCountryByName,
-  findStateByName,
-  getCitiesByCountryAndStateName,
-  getStatesByCountryName,
+  ALLOWED_SERVICE_LOCATIONS,
+  DEFAULT_COUNTRY,
+  DEFAULT_STATE,
+  formatCityStatePincode,
+  getAllowedPincodesForCity,
+  isAllowedPincodeForCity,
+  isAllowedServiceLocation,
 } from '@/lib/locationOptions';
 
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -34,26 +36,27 @@ const EMPTY_ADDRESS: DeliveryAddress = {
   mobile: '',
   address: '',
   city: '',
-  state: '',
+  state: DEFAULT_STATE,
   pincode: '',
   gender: '',
-  country: '',
+  country: DEFAULT_COUNTRY,
 };
 
 const DELIVERY_ADDRESSES_KEY = 'delivery_addresses';
 const DELIVERY_SELECTED_INDEX_KEY = 'delivery_selected_address_index';
 const DELIVERY_DETAILS_KEY = 'delivery_details';
 const MAX_STORED_ADDRESSES = 2;
+const normalizeServiceLocation = (value: string) => (isAllowedServiceLocation(value) ? value : '');
 
 const normalizeAddress = (data: Partial<DeliveryAddress> = {}): DeliveryAddress => ({
   name: String(data.name || '').trim(),
   mobile: String(data.mobile || '').trim(),
   address: String(data.address || '').trim(),
-  city: String(data.city || '').trim(),
-  state: String(data.state || '').trim(),
+  city: normalizeServiceLocation(String(data.city || '').trim()),
+  state: DEFAULT_STATE,
   pincode: String(data.pincode || '').trim(),
   gender: String(data.gender || '').trim(),
-  country: String(data.country || '').trim(),
+  country: DEFAULT_COUNTRY,
 });
 
 const isAddressComplete = (data: Partial<DeliveryAddress>) => {
@@ -65,6 +68,7 @@ const isAddressComplete = (data: Partial<DeliveryAddress>) => {
     normalized.city &&
     normalized.state &&
     normalized.pincode &&
+    isAllowedPincodeForCity(normalized.city, normalized.pincode) &&
     normalized.gender &&
     normalized.country
   );
@@ -97,16 +101,6 @@ const DeliveryDetails = () => {
   const [formData, setFormData] = useState<DeliveryAddress>(EMPTY_ADDRESS);
 
   const hasSavedAddresses = addresses.length > 0;
-  const hasMatchedCountry = useMemo(() => Boolean(findCountryByName(formData.country)), [formData.country]);
-  const states = useMemo(() => getStatesByCountryName(formData.country), [formData.country]);
-  const hasMatchedState = useMemo(
-    () => Boolean(findStateByName(formData.country, formData.state)),
-    [formData.country, formData.state]
-  );
-  const cities = useMemo(
-    () => getCitiesByCountryAndStateName(formData.country, formData.state),
-    [formData.country, formData.state]
-  );
 
   const storageUserKey = useMemo(() => {
     try {
@@ -145,6 +139,24 @@ const DeliveryDetails = () => {
     }
   };
 
+  const getCachedUserProfile = (): DeliveryAddress | null => {
+    try {
+      const cachedUser = JSON.parse(localStorage.getItem('fresco_user') || '{}');
+      return normalizeAddress({
+        name: cachedUser.fullName || cachedUser.username || '',
+        mobile: cachedUser.mobileNumber || '',
+        address: cachedUser.address || '',
+        city: cachedUser.city || '',
+        state: cachedUser.state || '',
+        pincode: cachedUser.pincode || '',
+        gender: cachedUser.gender || '',
+        country: cachedUser.country || '',
+      });
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     const initializeAddress = async () => {
       const product = localStorage.getItem('selected_product');
@@ -155,7 +167,10 @@ const DeliveryDetails = () => {
       setSelectedProduct(JSON.parse(product));
 
       const profile = await fetchUserProfile();
-      const normalizedProfile = profile && isAddressComplete(profile) ? normalizeAddress(profile) : null;
+      const cachedProfile = getCachedUserProfile();
+      const normalizedProfile =
+        (profile && isAddressComplete(profile) ? normalizeAddress(profile) : null) ||
+        (cachedProfile && isAddressComplete(cachedProfile) ? normalizeAddress(cachedProfile) : null);
 
       let mergedAddresses = parseStoredAddresses();
 
@@ -304,6 +319,18 @@ const DeliveryDetails = () => {
       return;
     }
 
+    if (!isAllowedPincodeForCity(normalizedAddress.city, normalizedAddress.pincode)) {
+      const allowed = getAllowedPincodesForCity(normalizedAddress.city);
+      toast({
+        title: 'Validation Error',
+        description: allowed.length
+          ? `Pincode must be ${allowed.join(', ')} for ${normalizedAddress.city}.`
+          : 'Selected city is not serviceable.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setLoading(true);
     const profileSaved = await saveUserProfile(normalizedAddress);
     setLoading(false);
@@ -353,14 +380,6 @@ const DeliveryDetails = () => {
     setEditingAddressIndex(index);
     setFormData(addresses[index]);
     setShowAddressForm(true);
-  };
-
-  const onCountryChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, country: value, state: '', city: '' }));
-  };
-
-  const onStateChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, state: value, city: '' }));
   };
 
   const goBackToSavedAddresses = () => {
@@ -484,11 +503,14 @@ const DeliveryDetails = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="address">Address *</Label>
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    If you are a faculty member or student at KL University, please mention your cabin or room number.
+                  </p>
                   <Textarea
                     id="address"
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    placeholder="Enter your complete address"
+                    placeholder="Enter your full address"
                     rows={3}
                     required
                   />
@@ -497,39 +519,12 @@ const DeliveryDetails = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="country">Country *</Label>
-                    <select
-                      id="country"
-                      value={formData.country}
-                      onChange={(e) => onCountryChange(e.target.value)}
-                      className="h-10 w-full appearance-none rounded-md border border-[#255c45] bg-white px-3 pr-10 text-sm shadow-sm transition-colors focus:outline-none focus:border-[#255c45] focus:ring-0 bg-no-repeat bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20fill=%22none%22%20viewBox=%220%200%2024%2024%22%20stroke-width=%222%22%20stroke=%22%23255c45%22%3E%3Cpath%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%20d=%22M19.5%208.25l-7.5%207.5-7.5-7.5%22%20/%3E%3C/svg%3E')] bg-[position:right_0.75rem_center] bg-[length:1rem_1rem]"
-                      required
-                    >
-                      <option value="">Select country</option>
-                      {ALL_COUNTRIES.map((country) => (
-                        <option key={country.isoCode} value={country.name}>
-                          {country.name}
-                        </option>
-                      ))}
-                    </select>
+                    <Input id="country" value={DEFAULT_COUNTRY} readOnly disabled className="disabled:bg-muted/50 disabled:text-muted-foreground" />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="state">State *</Label>
-                    <select
-                      id="state"
-                      value={formData.state}
-                      onChange={(e) => onStateChange(e.target.value)}
-                      disabled={!hasMatchedCountry}
-                      className="h-10 w-full appearance-none rounded-md border border-[#255c45] bg-white px-3 pr-10 text-sm shadow-sm transition-colors focus:outline-none focus:border-[#255c45] focus:ring-0 bg-no-repeat bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20fill=%22none%22%20viewBox=%220%200%2024%2024%22%20stroke-width=%222%22%20stroke=%22%23255c45%22%3E%3Cpath%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%20d=%22M19.5%208.25l-7.5%207.5-7.5-7.5%22%20/%3E%3C/svg%3E')] bg-[position:right_0.75rem_center] bg-[length:1rem_1rem] disabled:bg-muted/50 disabled:text-muted-foreground"
-                      required
-                    >
-                      <option value="">{hasMatchedCountry ? 'Select state' : 'Select country first'}</option>
-                      {states.map((state) => (
-                        <option key={`${state.countryCode}-${state.isoCode}`} value={state.name}>
-                          {state.name}
-                        </option>
-                      ))}
-                    </select>
+                    <Input id="state" value={DEFAULT_STATE} readOnly disabled className="disabled:bg-muted/50 disabled:text-muted-foreground" />
                   </div>
                 </div>
 
@@ -539,15 +534,14 @@ const DeliveryDetails = () => {
                     <select
                       id="city"
                       value={formData.city}
-                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                      disabled={!hasMatchedState}
-                      className="h-10 w-full appearance-none rounded-md border border-[#255c45] bg-white px-3 pr-10 text-sm shadow-sm transition-colors focus:outline-none focus:border-[#255c45] focus:ring-0 bg-no-repeat bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20fill=%22none%22%20viewBox=%220%200%2024%2024%22%20stroke-width=%222%22%20stroke=%22%23255c45%22%3E%3Cpath%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%20d=%22M19.5%208.25l-7.5%207.5-7.5-7.5%22%20/%3E%3C/svg%3E')] bg-[position:right_0.75rem_center] bg-[length:1rem_1rem] disabled:bg-muted/50 disabled:text-muted-foreground"
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value, pincode: '' })}
+                      className="h-10 w-full appearance-none rounded-md border border-[#255c45] bg-white px-3 pr-10 text-sm shadow-sm transition-colors focus:outline-none focus:border-[#255c45] focus:ring-0 bg-no-repeat bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20fill=%22none%22%20viewBox=%220%200%2024%2024%22%20stroke-width=%222%22%20stroke=%22%23255c45%22%3E%3Cpath%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%20d=%22M19.5%208.25l-7.5%207.5-7.5-7.5%22%20/%3E%3C/svg%3E')] bg-[position:right_0.75rem_center] bg-[length:1rem_1rem]"
                       required
                     >
-                      <option value="">{hasMatchedState ? 'Select city' : 'Select state first'}</option>
-                      {cities.map((city) => (
-                        <option key={`${city.name}-${city.latitude}-${city.longitude}`} value={city.name}>
-                          {city.name}
+                      <option value="">Select city</option>
+                      {ALLOWED_SERVICE_LOCATIONS.map((location) => (
+                        <option key={location} value={location}>
+                          {location}
                         </option>
                       ))}
                     </select>
@@ -563,6 +557,11 @@ const DeliveryDetails = () => {
                       maxLength={6}
                       required
                     />
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      {formData.city
+                        ? `Allowed pincode for ${formData.city}: ${getAllowedPincodesForCity(formData.city).join(', ') || 'N/A'}`
+                        : 'Select city first to see allowed pincode.'}
+                    </p>
                   </div>
                 </div>
 
@@ -586,9 +585,11 @@ const DeliveryDetails = () => {
                         <p className="font-semibold">{address.name}</p>
                         <p className="text-muted-foreground">{address.mobile}</p>
                         <p className="text-muted-foreground">Gender: {address.gender}</p>
-                        <p className="text-muted-foreground">{address.address}</p>
-                        <p className="text-muted-foreground">Country: {address.country} | State: {address.state}</p>
-                        <p className="text-muted-foreground">City: {address.city} | Pincode: {address.pincode}</p>
+                        <p className="text-muted-foreground">Address: {address.address}</p>
+                        <p className="text-muted-foreground">
+                          {formatCityStatePincode(address.city, address.state, address.pincode)}
+                        </p>
+                        <p className="text-muted-foreground">Country: {address.country}</p>
 
                         <div className="mt-4 flex items-center justify-between gap-3">
                           {isSelected ? (

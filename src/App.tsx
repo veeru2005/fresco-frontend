@@ -1,37 +1,36 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import SignIn from "./pages/SignIn";
-import SignUp from "./pages/SignUp";
-import Dashboard from "./pages/Dashboard";
-import Booking from "./pages/Booking";
-import Cart from "./pages/Cart";
-import DeliveryDetails from "./pages/DeliveryDetails";
-import Payment from "./pages/Payment";
-import PaymentSuccess from "./pages/PaymentSuccess";
-import Tracking from "./pages/Tracking";
-import Feedback from "./pages/Feedback";
-import AboutUs from "./pages/AboutUs";
-import MyOrders from "./pages/MyOrders";
-import Profile from "./pages/Profile";
-import AdminHome from "./pages/admin/AdminHome";
-import AdminProducts from "./pages/admin/Products";
-import AdminOrders from "./pages/admin/Orders";
-import AdminCustomers from "./pages/admin/Customers";
-import AdminFeedback from "./pages/admin/Feedback";
-import Admins from "./pages/admin/Admins";
-import { useLocation } from "react-router-dom";
-import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+const SignIn = lazy(() => import("./pages/SignIn"));
+const SignUp = lazy(() => import("./pages/SignUp"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Booking = lazy(() => import("./pages/Booking"));
+const Cart = lazy(() => import("./pages/Cart"));
+const DeliveryDetails = lazy(() => import("./pages/DeliveryDetails"));
+const Payment = lazy(() => import("./pages/Payment"));
+const PaymentSuccess = lazy(() => import("./pages/PaymentSuccess"));
+const Tracking = lazy(() => import("./pages/Tracking"));
+const Feedback = lazy(() => import("./pages/Feedback"));
+const AboutUs = lazy(() => import("./pages/AboutUs"));
+const MyOrders = lazy(() => import("./pages/MyOrders"));
+const Profile = lazy(() => import("./pages/Profile"));
+const AdminHome = lazy(() => import("./pages/admin/AdminHome"));
+const AdminProducts = lazy(() => import("./pages/admin/Products"));
+const AdminOrders = lazy(() => import("./pages/admin/Orders"));
+const AdminCustomers = lazy(() => import("./pages/admin/Customers"));
+const AdminFeedback = lazy(() => import("./pages/admin/Feedback"));
+const Admins = lazy(() => import("./pages/admin/Admins"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const AppContent = () => {
   const location = useLocation();
@@ -88,34 +87,36 @@ const AppContent = () => {
       <Navbar />
       <main className={`flex-1 ${useCompactMobileBottom ? 'mobile-safe-bottom-compact' : 'mobile-safe-bottom'} pt-16 md:pt-20`}>
         <div key={`${location.pathname}${location.search}`} className="page-transition-enter">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/signin" element={<SignIn />} />
-            <Route path="/signup" element={<SignUp />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/booking" element={<Booking />} />
-            <Route path="/products" element={<Booking />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/delivery-details" element={<ProtectedRoute><DeliveryDetails /></ProtectedRoute>} />
-            <Route path="/payment" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
-            <Route path="/payment-success" element={<ProtectedRoute><PaymentSuccess /></ProtectedRoute>} />
-            <Route path="/tracking" element={<ProtectedRoute><Tracking /></ProtectedRoute>} />
-            <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
-            <Route path="/my-orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
-            <Route path="/my-bookings" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">Loading...</div>}>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/signin" element={<SignIn />} />
+              <Route path="/signup" element={<SignUp />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/booking" element={<Booking />} />
+              <Route path="/products" element={<Booking />} />
+              <Route path="/cart" element={<Cart />} />
+              <Route path="/delivery-details" element={<ProtectedRoute><DeliveryDetails /></ProtectedRoute>} />
+              <Route path="/payment" element={<ProtectedRoute><Payment /></ProtectedRoute>} />
+              <Route path="/payment-success" element={<ProtectedRoute><PaymentSuccess /></ProtectedRoute>} />
+              <Route path="/tracking" element={<ProtectedRoute><Tracking /></ProtectedRoute>} />
+              <Route path="/feedback" element={<ProtectedRoute><Feedback /></ProtectedRoute>} />
+              <Route path="/my-orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
+              <Route path="/my-bookings" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
-            {/* Admin routes (protected) */}
-            <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminHome /></ProtectedRoute>} />
-            <Route path="/admin/products" element={<ProtectedRoute requireAdmin><AdminProducts /></ProtectedRoute>} />
-            <Route path="/admin/orders" element={<ProtectedRoute requireAdmin><AdminOrders /></ProtectedRoute>} />
-            <Route path="/admin/customers" element={<ProtectedRoute requireSuperAdmin><AdminCustomers /></ProtectedRoute>} />
-            <Route path="/admin/admins" element={<ProtectedRoute requireSuperAdmin><Admins /></ProtectedRoute>} />
-            <Route path="/admin/feedback" element={<ProtectedRoute requireAdmin><AdminFeedback /></ProtectedRoute>} />
+              {/* Admin routes (protected) */}
+              <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminHome /></ProtectedRoute>} />
+              <Route path="/admin/products" element={<ProtectedRoute requireAdmin><AdminProducts /></ProtectedRoute>} />
+              <Route path="/admin/orders" element={<ProtectedRoute requireAdmin><AdminOrders /></ProtectedRoute>} />
+              <Route path="/admin/customers" element={<ProtectedRoute requireSuperAdmin><AdminCustomers /></ProtectedRoute>} />
+              <Route path="/admin/admins" element={<ProtectedRoute requireSuperAdmin><Admins /></ProtectedRoute>} />
+              <Route path="/admin/feedback" element={<ProtectedRoute requireAdmin><AdminFeedback /></ProtectedRoute>} />
 
-            <Route path="/about" element={<AboutUs />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              <Route path="/about" element={<AboutUs />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </div>
       </main>
       {!shouldHideFooter && <Footer />}

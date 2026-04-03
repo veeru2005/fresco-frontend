@@ -3,11 +3,21 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, ArrowRight } from 'lucide-react';
+import { buildDeliveryAddressLines } from '@/lib/locationOptions';
+
+type DeliveryDetailsState = {
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  country?: string;
+};
 
 const PaymentSuccess = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const order = location.state?.order;
+  const deliveryDetails = (location.state?.deliveryDetails || null) as DeliveryDetailsState | null;
 
   useEffect(() => {
     if (!order) {
@@ -16,6 +26,30 @@ const PaymentSuccess = () => {
   }, [order, navigate]);
 
   if (!order) return null;
+
+  const deliveryAddressLines = (() => {
+    if (deliveryDetails) {
+      const lines = buildDeliveryAddressLines({
+        address: deliveryDetails.address,
+        city: deliveryDetails.city,
+        state: deliveryDetails.state,
+        pincode: deliveryDetails.pincode,
+        country: deliveryDetails.country || order.country,
+      });
+
+      if (lines.length) return lines;
+    }
+
+    const rawAddress = String(order.address || '').trim();
+    if (!rawAddress) {
+      return order.country ? [String(order.country)] : [];
+    }
+
+    return rawAddress
+      .split('\n')
+      .map((line: string) => line.trim())
+      .filter(Boolean);
+  })();
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 py-6 sm:py-8">
@@ -70,24 +104,15 @@ const PaymentSuccess = () => {
 
               <div className="sm:col-span-2">
                 <p className="text-sm text-muted-foreground">Delivery Address</p>
-                <p className="font-semibold whitespace-pre-line">
-                  {order.address}
-                  {order.mobileNumber && (
-                    <>
-                      {'\n'}Mobile: {order.mobileNumber}
-                    </>
-                  )}
-                  {order.gender && (
-                    <>
-                      {'\n'}Gender: {order.gender}
-                    </>
-                  )}
-                  {order.country && (
-                    <>
-                      {'\n'}Country: {order.country}
-                    </>
-                  )}
-                </p>
+                <div className="font-semibold space-y-1">
+                  {deliveryAddressLines.map((line: string, index: number) => (
+                    <p key={`delivery-line-${index}`} className="leading-relaxed">
+                      {line}
+                    </p>
+                  ))}
+                  {order.mobileNumber ? <p>Mobile: {order.mobileNumber}</p> : null}
+                  {order.gender ? <p>Gender: {order.gender}</p> : null}
+                </div>
               </div>
             </div>
           </Card>

@@ -77,13 +77,19 @@ const Navbar = () => {
   const [unreadFeedbackCount, setUnreadFeedbackCount] = useState(0);
 
   const syncCartCount = () => {
+    if (!isAuthenticated) {
+      setCartCount(0);
+      return;
+    }
     const total = getCart().reduce((sum, item) => sum + Math.max(0, Number(item.quantity || 0)), 0);
     setCartCount(total);
   };
 
   const handleLogout = () => {
     navigate('/', { replace: true });
-    signOut();
+    window.setTimeout(() => {
+      signOut();
+    }, 0);
   };
 
   const navLinks = isAuthenticated

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -39,13 +39,19 @@ const Admins = () => {
   const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState<AdminActivity | null>(null);
   const [pendingDeleteAdminId, setPendingDeleteAdminId] = useState<string | null>(null);
+  const [isLoadingAdmins, setIsLoadingAdmins] = useState(false);
   const isSuperAdmin = user?.isSuperAdmin;
 
-  const loadAdmins = async () => {
+  const loadAdmins = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
     try {
+      if (!silent) {
+        setIsLoadingAdmins(true);
+      }
+
       const token = localStorage.getItem('fresco_token');
       const res = await fetch(`${VITE_API_BASE_URL}/api/super-admin/admins`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
+        cache: 'no-store',
       });
 
       if (!res.ok) {
@@ -56,19 +62,62 @@ const Admins = () => {
       setAdmins(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error loading admin activity:', error);
-      toast({
-        title: 'Could not load admins',
-        description: 'Please try again after refreshing.',
-        variant: 'destructive',
-      });
+      if (!silent) {
+        toast({
+          title: 'Could not load admins',
+          description: 'Please try again after refreshing.',
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      if (!silent) {
+        setIsLoadingAdmins(false);
+      }
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
-    if (isSuperAdmin) {
-      loadAdmins();
+    if (!isSuperAdmin) {
+      return;
     }
-  }, [isSuperAdmin]);
+
+    loadAdmins();
+
+    const refreshOnFocus = () => {
+      loadAdmins({ silent: true });
+    };
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') {
+        loadAdmins({ silent: true });
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      loadAdmins({ silent: true });
+    }, 15000);
+
+    window.addEventListener('focus', refreshOnFocus);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshOnFocus);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [isSuperAdmin, loadAdmins]);
+
+  useEffect(() => {
+    if (!selectedAdmin) return;
+
+    const latestAdmin = admins.find((item) => item.id === selectedAdmin.id);
+    if (!latestAdmin) {
+      setSelectedAdmin(null);
+      return;
+    }
+
+    setSelectedAdmin(latestAdmin);
+  }, [admins, selectedAdmin]);
 
   const filteredAdmins = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -134,7 +183,7 @@ const Admins = () => {
       setFormName('');
       setFormEmail('');
       setIsAddAdminOpen(false);
-      await loadAdmins();
+      await loadAdmins({ silent: true });
     } catch (error: any) {
       toast({ title: 'Failed', description: error?.message || 'Could not create admin', variant: 'destructive' });
     } finally {
@@ -156,7 +205,11 @@ const Admins = () => {
       }
 
       setAdmins((prev) => prev.filter((admin) => admin.id !== adminId));
+      if (selectedAdmin?.id === adminId) {
+        setSelectedAdmin(null);
+      }
       toast({ title: 'Deleted', description: 'Admin deleted successfully' });
+      loadAdmins({ silent: true });
     } catch (error: any) {
       toast({ title: 'Delete failed', description: error?.message || 'Could not delete admin', variant: 'destructive' });
     }
@@ -185,6 +238,7 @@ const Admins = () => {
           <div>
             <h1 className="text-3xl font-bold">Admin Management</h1>
             <p className="text-muted-foreground">Add new admins and manage admin accounts</p>
+            {isLoadingAdmins ? <p className="text-xs text-muted-foreground mt-1">Loading latest admin details...</p> : null}
           </div>
 
           <div className="flex items-center gap-3 w-full md:w-auto">

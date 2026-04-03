@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,14 +10,16 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Mail, Smartphone } from 'lucide-react';
 import {
-  ALL_COUNTRIES,
-  findCountryByName,
-  findStateByName,
-  getCitiesByCountryAndStateName,
-  getStatesByCountryName,
+  ALLOWED_SERVICE_LOCATIONS,
+  DEFAULT_COUNTRY,
+  DEFAULT_STATE,
+  getAllowedPincodesForCity,
+  isAllowedPincodeForCity,
+  isAllowedServiceLocation,
 } from '@/lib/locationOptions';
 
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const normalizeServiceLocation = (value: string) => (isAllowedServiceLocation(value) ? value : '');
 
 const Profile = () => {
   const { user } = useAuth();
@@ -32,30 +34,11 @@ const Profile = () => {
     mobileNumber: '',
     address: '',
     city: '',
-    state: '',
+    state: DEFAULT_STATE,
     pincode: '',
     gender: '',
-    country: '',
+    country: DEFAULT_COUNTRY,
   });
-
-  const hasMatchedCountry = useMemo(() => Boolean(findCountryByName(formData.country)), [formData.country]);
-  const states = useMemo(() => getStatesByCountryName(formData.country), [formData.country]);
-  const hasMatchedState = useMemo(
-    () => Boolean(findStateByName(formData.country, formData.state)),
-    [formData.country, formData.state]
-  );
-  const cities = useMemo(
-    () => getCitiesByCountryAndStateName(formData.country, formData.state),
-    [formData.country, formData.state]
-  );
-
-  const onCountryChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, country: value, state: '', city: '' }));
-  };
-
-  const onStateChange = (value: string) => {
-    setFormData((prev) => ({ ...prev, state: value, city: '' }));
-  };
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -67,16 +50,18 @@ const Profile = () => {
 
         if (response.ok) {
           const profile = await response.json();
+          const normalizedCity = normalizeServiceLocation(profile.city || '');
+          const normalizedPincode = String(profile.pincode || '').trim();
           setFormData({
             fullName: profile.fullName || profile.name || user?.username || '',
             email: profile.email || user?.email || '',
             mobileNumber: profile.mobileNumber || '',
-            address: profile.address || '',
-            city: profile.city || '',
-            state: profile.state || '',
-            pincode: profile.pincode || '',
+            address: String(profile.address || '').trim(),
+            city: normalizedCity,
+            state: DEFAULT_STATE,
+            pincode: isAllowedPincodeForCity(normalizedCity, normalizedPincode) ? normalizedPincode : '',
             gender: profile.gender || '',
-            country: profile.country || '',
+            country: DEFAULT_COUNTRY,
           });
           return;
         }
@@ -84,18 +69,19 @@ const Profile = () => {
         console.error('Error loading profile:', error);
       }
 
-      setFormData((prev) => ({
-        ...prev,
+      const normalizedCity = normalizeServiceLocation(user?.city || '');
+      const normalizedPincode = String(user?.pincode || '').trim();
+      setFormData({
         fullName: user?.fullName || user?.username || '',
         email: user?.email || '',
         mobileNumber: user?.mobileNumber || '',
-        address: user?.address || '',
-        city: user?.city || '',
-        state: user?.state || '',
-        pincode: user?.pincode || '',
+        address: String(user?.address || '').trim(),
+        city: normalizedCity,
+        state: DEFAULT_STATE,
+        pincode: isAllowedPincodeForCity(normalizedCity, normalizedPincode) ? normalizedPincode : '',
         gender: user?.gender || '',
-        country: user?.country || '',
-      }));
+        country: DEFAULT_COUNTRY,
+      });
     };
 
     loadProfile().finally(() => setLoading(false));
@@ -105,11 +91,17 @@ const Profile = () => {
     if (!formData.fullName.trim()) return 'Please enter your full name.';
     if (!/^\d{10}$/.test(formData.mobileNumber.trim())) return 'Please enter a valid 10-digit mobile number.';
     if (!formData.address.trim()) return 'Please enter your address.';
-    if (!formData.city.trim()) return 'Please enter your city.';
-    if (!formData.state.trim()) return 'Please enter your state.';
+    if (!isAllowedServiceLocation(formData.city)) return 'Please select city from the allowed locations.';
+    if (formData.state.trim() !== DEFAULT_STATE) return 'State must be Andhra Pradesh.';
     if (!/^\d{6}$/.test(formData.pincode.trim())) return 'Please enter a valid 6-digit pincode.';
+    if (!isAllowedPincodeForCity(formData.city, formData.pincode)) {
+      const allowed = getAllowedPincodesForCity(formData.city);
+      return allowed.length
+        ? `Pincode must be ${allowed.join(', ')} for ${formData.city}.`
+        : 'Selected city is not serviceable.';
+    }
     if (!formData.gender.trim()) return 'Please select your gender.';
-    if (!formData.country.trim()) return 'Please enter your country.';
+    if (formData.country.trim() !== DEFAULT_COUNTRY) return 'Country must be India.';
     return null;
   };
 
@@ -138,10 +130,10 @@ const Profile = () => {
           mobileNumber: formData.mobileNumber,
           address: formData.address,
           city: formData.city,
-          state: formData.state,
+          state: DEFAULT_STATE,
           pincode: formData.pincode,
           gender: formData.gender,
-          country: formData.country,
+          country: DEFAULT_COUNTRY,
         }),
       });
 
@@ -169,10 +161,10 @@ const Profile = () => {
             mobileNumber: formData.mobileNumber,
             address: formData.address,
             city: formData.city,
-            state: formData.state,
+            state: DEFAULT_STATE,
             pincode: formData.pincode,
             gender: formData.gender,
-            country: formData.country,
+            country: DEFAULT_COUNTRY,
           };
           localStorage.setItem('fresco_user', JSON.stringify(merged));
         } catch {
@@ -275,13 +267,15 @@ const Profile = () => {
 
                 <div className="space-y-1.5 sm:col-span-2">
                   <Label htmlFor="profile-address">Address *</Label>
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    If you are a faculty member or student at KL University, please mention your cabin or room number.
+                  </p>
                   <Textarea
                     id="profile-address"
                     value={formData.address}
                     onChange={(e) => setFormData((prev) => ({ ...prev, address: e.target.value }))}
                     rows={3}
-                    placeholder="Enter your complete address"
-                    
+                    placeholder="Enter your full address"
                     disabled={!isEditing}
                     required
                   />
@@ -289,54 +283,28 @@ const Profile = () => {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="profile-country">Country *</Label>
-                  <Select value={formData.country || undefined} onValueChange={onCountryChange} disabled={!isEditing}>
-                    <SelectTrigger id="profile-country" className="h-10 border-[#255c45] disabled:bg-slate-50">
-                      <SelectValue placeholder="Select country" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-72 rounded-xl border-[#255c45] bg-white">
-                      {ALL_COUNTRIES.map((country) => (
-                        <SelectItem key={country.isoCode} value={country.name}>
-                          {country.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input id="profile-country" value={DEFAULT_COUNTRY} disabled readOnly className="h-10 border-[#255c45] disabled:bg-slate-50" />
                 </div>
 
                 <div className="space-y-1.5">
                   <Label htmlFor="profile-state">State *</Label>
-                  <Select
-                    value={formData.state || undefined}
-                    onValueChange={onStateChange}
-                    disabled={!isEditing || !hasMatchedCountry}
-                  >
-                    <SelectTrigger id="profile-state" className="h-10 border-[#255c45] disabled:bg-slate-50">
-                      <SelectValue placeholder={hasMatchedCountry ? 'Select state' : 'Select country first'} />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-72 w-[var(--radix-select-trigger-width)] rounded-xl border-[#255c45] bg-white sm:w-auto sm:min-w-[var(--radix-select-trigger-width)]">
-                      {states.map((state) => (
-                        <SelectItem key={`${state.countryCode}-${state.isoCode}`} value={state.name} className="truncate">
-                          {state.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input id="profile-state" value={DEFAULT_STATE} disabled readOnly className="h-10 border-[#255c45] disabled:bg-slate-50" />
                 </div>
 
                 <div className="space-y-1.5">
                   <Label htmlFor="profile-city">City *</Label>
                   <Select
                     value={formData.city || undefined}
-                    onValueChange={(value) => setFormData((prev) => ({ ...prev, city: value }))}
-                    disabled={!isEditing || !hasMatchedState}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, city: value, pincode: '' }))}
+                    disabled={!isEditing}
                   >
                     <SelectTrigger id="profile-city" className="h-10 border-[#255c45] disabled:bg-slate-50">
-                      <SelectValue placeholder={hasMatchedState ? 'Select city' : 'Select state first'} />
+                      <SelectValue placeholder="Select city" />
                     </SelectTrigger>
                     <SelectContent className="max-h-72 rounded-xl border-[#255c45] bg-white">
-                      {cities.map((city) => (
-                        <SelectItem key={`${city.name}-${city.latitude}-${city.longitude}`} value={city.name}>
-                          {city.name}
+                      {ALLOWED_SERVICE_LOCATIONS.map((location) => (
+                        <SelectItem key={location} value={location}>
+                          {location}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -360,6 +328,11 @@ const Profile = () => {
                     disabled={!isEditing}
                     required
                   />
+                  <p className="text-[11px] text-muted-foreground leading-tight">
+                    {formData.city
+                      ? `Allowed pincode for ${formData.city}: ${getAllowedPincodesForCity(formData.city).join(', ') || 'N/A'}`
+                      : 'Select city first to see allowed pincode.'}
+                  </p>
                 </div>
               </div>
 

@@ -7,7 +7,7 @@ const Footer = () => {
   const linkedinProfileUrl = 'https://www.linkedin.com/in/veerendra-chowdary-sunkavalli-513b58309/';
   return (
     <footer className="bg-[#2f7656] border-t border-white/15 mt-auto text-white">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] md:pb-12">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] md:pb-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Company Info */}
           <div className="space-y-4">
@@ -135,7 +135,7 @@ const Footer = () => {
         <div className="border-t border-white/20 mt-8 pt-6 pb-4 text-sm text-white/70">
           <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-between w-full mx-auto">
             <p className="text-center sm:text-left whitespace-nowrap">&copy; {new Date().getFullYear()} Fresco Organics. All rights reserved.</p>
-            <div className="flex w-full flex-nowrap items-center justify-center sm:justify-end gap-1 whitespace-nowrap text-[0.55rem] sm:text-sm leading-tight tracking-tight px-1">
+            <div className="flex w-full flex-nowrap items-center justify-center sm:justify-end gap-1 whitespace-nowrap text-[0.90rem] sm:text-sm leading-tight tracking-tight px-1">
               <span>Developed by</span>
               <a
                 href={linkedinProfileUrl}

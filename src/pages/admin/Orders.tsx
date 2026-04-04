@@ -29,10 +29,6 @@ interface Order {
   deliveryAddress?: string;
   mobileNumber: string;
   gender?: string;
-  country?: string;
-  city?: string;
-  state?: string;
-  pincode?: string;
   paymentAmount: number;
   paymentStatus: string;
   startDate: string;
@@ -295,7 +291,6 @@ const AdminOrders = () => {
               const hasMultipleItems = orderedItems.length > 1;
               const isExpanded = expandedOrderIds.has(String(order.id));
               const deliveryAddress = String(order.deliveryAddress || order.address || '').trim();
-              const cityStatePincode = [order.city, order.state, order.pincode].filter(Boolean).join(', ');
               const orderedItemsLabel = orderedItems
                 .map((item) => `${item.name} x${Math.max(1, Number(item.quantity || 1))}`)
                 .join(', ');
@@ -326,17 +321,12 @@ const AdminOrders = () => {
                           <p className="text-sm text-muted-foreground">Mobile: {order.mobileNumber}</p>
                           {deliveryAddress && (
                             <p className="text-sm text-muted-foreground break-words">
-                              Delivery Address: {deliveryAddress}
+                              Address: {deliveryAddress}
                             </p>
                           )}
-                          {cityStatePincode && (
-                            <p className="text-sm text-muted-foreground">Location: {cityStatePincode}</p>
-                          )}
-                          {(order.gender || order.country) && (
+                          {order.gender && (
                             <p className="text-sm text-muted-foreground">
-                              {order.gender ? `Gender: ${order.gender}` : ''}
-                              {order.gender && order.country ? ' | ' : ''}
-                              {order.country ? `Country: ${order.country}` : ''}
+                              {`Gender: ${order.gender}`}
                             </p>
                           )}
                           {hasMultipleItems && (

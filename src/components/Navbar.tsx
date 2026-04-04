@@ -205,7 +205,7 @@ const Navbar = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-[#255c45] border-b border-white/20 shadow-sm text-white">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 md:h-20">
-            <Link to="/" className="flex items-center gap-2 group">
+            <div className="flex items-center gap-2 group" aria-label="Fresco Organics brand">
               <div className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-[8px] overflow-hidden group-hover:scale-105 transition-transform duration-300 shadow-sm bg-white">
                 <img src="https://res.cloudinary.com/dv5qxkxmc/image/upload/v1775308892/2_oast1m.jpg" alt="Fresco Organics logo" className="h-full w-full object-cover scale-110" />
               </div>
@@ -213,7 +213,7 @@ const Navbar = () => {
                 <span className="text-xl sm:text-2xl font-bold text-white">Fresco</span>
                 <span className="text-xl sm:text-2xl font-bold text-amber-400">Organics</span>
               </span>
-            </Link>
+            </div>
 
             {/* Desktop Navigation */}
             <div className="hidden lg:flex items-center gap-1">

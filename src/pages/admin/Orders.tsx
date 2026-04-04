@@ -7,13 +7,20 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import ConfirmActionDialog from '@/components/ConfirmActionDialog';
+import { normalizeUnitLabel } from '@/lib/pricing';
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 import { ChevronDown, Search, ShoppingBag, Trash2 } from 'lucide-react';
+
+const getDisplayUnit = (value: unknown) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  return normalizeUnitLabel(raw, '') || raw;
+};
 
 const formatOrderedItemLabel = (item: any) => {
   const itemName = String(item?.name || 'Item');
   const quantity = Math.max(1, Number(item?.quantity || 1));
-  const unit = String(item?.unit || '').trim();
+  const unit = getDisplayUnit(item?.unit);
 
   if (unit) {
     return quantity > 1 ? `${itemName} ${quantity} x ${unit}` : `${itemName} (${unit})`;
@@ -474,7 +481,7 @@ const AdminOrders = () => {
                                   <p className="font-medium text-sm leading-tight break-words">{item.name || 'Item'}</p>
                                   <p className="text-xs text-muted-foreground">
                                     Qty: {Math.max(1, Number(item.quantity || 1))}
-                                    {item.unit ? ` (${String(item.unit).trim()})` : ''}
+                                    {getDisplayUnit(item.unit) ? ` (${getDisplayUnit(item.unit)})` : ''}
                                     {Number(item.unitPrice || 0) > 0 ? ` • ₹${Number(item.unitPrice || 0)} each` : ''}
                                   </p>
                                 </div>

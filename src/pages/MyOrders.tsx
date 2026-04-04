@@ -7,12 +7,19 @@ import { Input } from '@/components/ui/input';
 import { ChevronDown, Package, Navigation, Search, ShoppingBag } from 'lucide-react';
 import { formatDateDDMMYYYY } from '@/lib/date';
 import ConfirmActionDialog from '@/components/ConfirmActionDialog';
+import { normalizeUnitLabel } from '@/lib/pricing';
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
+const getDisplayUnit = (value: unknown) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  return normalizeUnitLabel(raw, '') || raw;
+};
 
 const formatOrderedItemLabel = (item: any) => {
   const itemName = String(item?.name || 'Item');
   const quantity = Math.max(1, Number(item?.quantity || 1));
-  const unit = String(item?.unit || '').trim();
+  const unit = getDisplayUnit(item?.unit);
 
   if (unit) {
     return quantity > 1 ? `${itemName} ${quantity} x ${unit}` : `${itemName} (${unit})`;
@@ -418,7 +425,7 @@ const MyOrders = () => {
                                   <p className="font-medium text-sm truncate">{item.name || 'Item'}</p>
                                   <p className="text-xs text-muted-foreground">
                                     Qty: {Math.max(1, Number(item.quantity || 1))}
-                                    {item.unit ? ` (${String(item.unit).trim()})` : ''}
+                                    {getDisplayUnit(item.unit) ? ` (${getDisplayUnit(item.unit)})` : ''}
                                     {` • ₹${Number(item.unitPrice || 0)} each`}
                                   </p>
                                 </div>

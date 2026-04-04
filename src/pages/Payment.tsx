@@ -8,11 +8,30 @@ import { MapPin } from 'lucide-react';
 import { clearCart, removeFromCartByUnit } from '@/lib/cart';
 import { formatCityStatePincode } from '@/lib/locationOptions';
 import { previewOffers, type OfferPreviewResponse } from '@/lib/offers';
+import { getPrimaryPricingOption, normalizeUnitLabel } from '@/lib/pricing';
 import Lottie from 'lottie-react';
 
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const FREE_DELIVERY_THRESHOLD = 250;
 const DELIVERY_CHARGE = 20;
+
+const resolveUnitLabel = (value?: string) => normalizeUnitLabel(value || '', '');
+
+const resolveOrderItemUnit = (item: any, fallbackProduct?: any) => {
+  const directUnit = resolveUnitLabel(item?.unit);
+  if (directUnit) return directUnit;
+
+  const sourceProduct = item?.pricingOptions ? item : fallbackProduct;
+  if (sourceProduct) {
+    const normalizedProductUnit = resolveUnitLabel(sourceProduct?.unit);
+    if (normalizedProductUnit) return normalizedProductUnit;
+
+    const normalizedPrimaryUnit = resolveUnitLabel(getPrimaryPricingOption(sourceProduct).unit);
+    if (normalizedPrimaryUnit) return normalizedPrimaryUnit;
+  }
+
+  return '1 kg';
+};
 
 const Payment = () => {
   const navigate = useNavigate();
@@ -39,6 +58,7 @@ const Payment = () => {
   const effectiveDiscount = Number(offerPreview?.discountAmount || 0);
   const effectiveDelivery = Number(offerPreview?.deliveryCharge ?? deliveryCharge);
   const effectiveTotal = Number(offerPreview?.payableAmount ?? totalPayable);
+  const buyNowUnit = resolveOrderItemUnit(product, product);
   const orderItemsForDisplay =
     checkoutSource === 'cart' && cartItems.length
       ? cartItems.map((item) => ({
@@ -47,7 +67,7 @@ const Payment = () => {
           type: String(item.type || item.category || 'Item'),
           image: String(item.image || product?.image || ''),
           quantity: Math.max(1, Number(item.quantity || 1)),
-          unit: String(item.unit || '1 kg'),
+          unit: resolveOrderItemUnit(item, item),
           unitPrice: Number(item.price || 0),
         }))
       : product
@@ -58,7 +78,7 @@ const Payment = () => {
             type: String(product.type || product.category || 'Item'),
             image: String(product.image || ''),
             quantity: buyNowQty,
-            unit: String(product.unit || '1 kg'),
+            unit: buyNowUnit,
             unitPrice: Number(product.price || 0),
           },
         ]
@@ -184,14 +204,14 @@ const Payment = () => {
         ? cartItems.filter((item) => item?.id).map((item) => ({
             product: String(item.id),
             quantity: Math.max(1, Number(item.quantity || 1)),
-            unit: String(item.unit || '1 kg'),
+            unit: resolveOrderItemUnit(item, item),
             unitPrice: Number(item.price || 0),
           }))
-        : [{ product: String(product.id), quantity: buyNowQty, unit: String(product.unit || '1 kg'), unitPrice: Number(product.price || 0) }];
+        : [{ product: String(product.id), quantity: buyNowQty, unit: buyNowUnit, unitPrice: Number(product.price || 0) }];
 
       const safeItems = normalizedItems.length
         ? normalizedItems
-        : [{ product: String(product.id), quantity: buyNowQty, unit: String(product.unit || '1 kg'), unitPrice: Number(product.price || 0) }];
+        : [{ product: String(product.id), quantity: buyNowQty, unit: buyNowUnit, unitPrice: Number(product.price || 0) }];
 
       const safeSubtotalAmount = subtotal > 0 ? subtotal : Number(product.price || 0) * buyNowQty;
       const safeDeliveryCharge = Number(offerPreview?.deliveryCharge ?? (safeSubtotalAmount >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_CHARGE));
@@ -247,7 +267,7 @@ const Payment = () => {
       if (checkoutSource === 'cart') {
         clearCart();
       } else if (product?.id) {
-        removeFromCartByUnit(String(product.id), product?.unit);
+        removeFromCartByUnit(String(product.id), buyNowUnit);
       }
 
       localStorage.removeItem('selected_cart');

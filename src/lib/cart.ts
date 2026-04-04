@@ -91,7 +91,8 @@ export const saveCart = (items: CartItem[]) => {
 export const addToCart = (item: Omit<CartItem, 'quantity'>, quantity: number) => {
   const safeQty = Math.max(1, quantity);
   const cart = getCart();
-  const existingIndex = cart.findIndex((c) => c.id === item.id);
+  const normalizedUnit = String(item.unit || '').trim();
+  const existingIndex = cart.findIndex((c) => c.id === item.id && String(c.unit || '').trim() === normalizedUnit);
 
   if (existingIndex >= 0) {
     cart[existingIndex].quantity += safeQty;
@@ -104,13 +105,36 @@ export const addToCart = (item: Omit<CartItem, 'quantity'>, quantity: number) =>
 
 export const updateCartQty = (id: string, quantity: number) => {
   const cart = getCart();
+  const normalizedId = String(id);
   const next = cart
-    .map((item) => (item.id === id ? { ...item, quantity: Math.max(1, quantity) } : item));
+    .map((item) => (item.id === normalizedId ? { ...item, quantity: Math.max(1, quantity) } : item));
+  saveCart(next);
+};
+
+export const updateCartQtyByUnit = (id: string, unit: string | undefined, quantity: number) => {
+  const cart = getCart();
+  const normalizedId = String(id);
+  const normalizedUnit = String(unit || '').trim();
+  const next = cart
+    .map((item) =>
+      item.id === normalizedId && String(item.unit || '').trim() === normalizedUnit
+        ? { ...item, quantity: Math.max(1, quantity) }
+        : item
+    );
   saveCart(next);
 };
 
 export const removeFromCart = (id: string) => {
   const cart = getCart().filter((item) => item.id !== id);
+  saveCart(cart);
+};
+
+export const removeFromCartByUnit = (id: string, unit: string | undefined) => {
+  const normalizedId = String(id);
+  const normalizedUnit = String(unit || '').trim();
+  const cart = getCart().filter(
+    (item) => !(item.id === normalizedId && String(item.unit || '').trim() === normalizedUnit)
+  );
   saveCart(cart);
 };
 

@@ -3,6 +3,12 @@ export interface Product {
   name: string;
   type: string;
   price: number;
+  displayOrder?: number;
+  unit?: string;
+  pricingOptions?: Array<{
+    unit: string;
+    price: number;
+  }>;
   image: string;
   description: string;
   available: boolean;

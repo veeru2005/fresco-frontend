@@ -9,6 +9,18 @@ import { formatDateDDMMYYYY } from '@/lib/date';
 import ConfirmActionDialog from '@/components/ConfirmActionDialog';
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
+const formatOrderedItemLabel = (item: any) => {
+  const itemName = String(item?.name || 'Item');
+  const quantity = Math.max(1, Number(item?.quantity || 1));
+  const unit = String(item?.unit || '').trim();
+
+  if (unit) {
+    return quantity > 1 ? `${itemName} ${quantity} x ${unit}` : `${itemName} (${unit})`;
+  }
+
+  return `${itemName} x${quantity}`;
+};
+
 const MyOrders = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -247,7 +259,7 @@ const MyOrders = () => {
               const hasMultipleItems = orderedItems.length > 1;
               const isExpanded = expandedOrderIds.has(String(order.id));
               const orderedItemsLabel = orderedItems
-                .map((item: any) => `${item.name} x${Math.max(1, Number(item.quantity || 1))}`)
+                .map((item: any) => formatOrderedItemLabel(item))
                 .join(', ');
 
               return (
@@ -404,7 +416,11 @@ const MyOrders = () => {
                                 />
                                 <div className="min-w-0">
                                   <p className="font-medium text-sm truncate">{item.name || 'Item'}</p>
-                                  <p className="text-xs text-muted-foreground">Qty: {Math.max(1, Number(item.quantity || 1))} x ₹{Number(item.unitPrice || 0)}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Qty: {Math.max(1, Number(item.quantity || 1))}
+                                    {item.unit ? ` (${String(item.unit).trim()})` : ''}
+                                    {` • ₹${Number(item.unitPrice || 0)} each`}
+                                  </p>
                                 </div>
                               </div>
                               <p className="text-sm font-semibold shrink-0">₹{Number(item.itemAmount || 0)}</p>

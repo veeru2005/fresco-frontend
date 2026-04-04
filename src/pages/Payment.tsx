@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { MapPin } from 'lucide-react';
-import { clearCart, removeFromCart } from '@/lib/cart';
+import { clearCart, removeFromCartByUnit } from '@/lib/cart';
 import { formatCityStatePincode } from '@/lib/locationOptions';
 import { previewOffers, type OfferPreviewResponse } from '@/lib/offers';
 import Lottie from 'lottie-react';
@@ -47,6 +47,7 @@ const Payment = () => {
           type: String(item.type || item.category || 'Item'),
           image: String(item.image || product?.image || ''),
           quantity: Math.max(1, Number(item.quantity || 1)),
+          unit: String(item.unit || '1 kg'),
           unitPrice: Number(item.price || 0),
         }))
       : product
@@ -57,6 +58,7 @@ const Payment = () => {
             type: String(product.type || product.category || 'Item'),
             image: String(product.image || ''),
             quantity: buyNowQty,
+            unit: String(product.unit || '1 kg'),
             unitPrice: Number(product.price || 0),
           },
         ]
@@ -182,12 +184,14 @@ const Payment = () => {
         ? cartItems.filter((item) => item?.id).map((item) => ({
             product: String(item.id),
             quantity: Math.max(1, Number(item.quantity || 1)),
+            unit: String(item.unit || '1 kg'),
+            unitPrice: Number(item.price || 0),
           }))
-        : [{ product: String(product.id), quantity: buyNowQty }];
+        : [{ product: String(product.id), quantity: buyNowQty, unit: String(product.unit || '1 kg'), unitPrice: Number(product.price || 0) }];
 
       const safeItems = normalizedItems.length
         ? normalizedItems
-        : [{ product: String(product.id), quantity: buyNowQty }];
+        : [{ product: String(product.id), quantity: buyNowQty, unit: String(product.unit || '1 kg'), unitPrice: Number(product.price || 0) }];
 
       const safeSubtotalAmount = subtotal > 0 ? subtotal : Number(product.price || 0) * buyNowQty;
       const safeDeliveryCharge = Number(offerPreview?.deliveryCharge ?? (safeSubtotalAmount >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_CHARGE));
@@ -243,7 +247,7 @@ const Payment = () => {
       if (checkoutSource === 'cart') {
         clearCart();
       } else if (product?.id) {
-        removeFromCart(String(product.id));
+        removeFromCartByUnit(String(product.id), product?.unit);
       }
 
       localStorage.removeItem('selected_cart');
@@ -325,7 +329,8 @@ const Payment = () => {
                   <div className="min-w-0">
                     <p className="font-semibold truncate">{item.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      {item.type} | Qty: {item.quantity}
+                      {item.type} | Qty: {item.quantity} x ₹{item.unitPrice}
+                      {item.unit ? ` / ${item.unit}` : ''}
                     </p>
                   </div>
                   <p className="ml-auto font-bold">₹{item.unitPrice * item.quantity}</p>

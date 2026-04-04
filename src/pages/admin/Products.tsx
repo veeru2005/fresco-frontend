@@ -4,17 +4,74 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import ConfirmActionDialog from '@/components/ConfirmActionDialog';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Product } from '@/data/mockData';
+import {
+  getAllowedPricingUnits,
+  PRODUCT_UNIT_OPTIONS,
+  getMaxAllowedPricingOptions,
+  getPrimaryPricingOption,
+  getProductPricingOptions,
+  normalizeUnitLabel,
+  sanitizePricingOptionsForSave,
+} from '@/lib/pricing';
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 import { Search, Trash2, PackageSearch } from 'lucide-react';
 
-const UNIT_OPTIONS = ['kg', 'gm', 'dozen', 'half dozen', 'liter', 'ml'];
 const MAX_IMAGE_UPLOAD_BYTES = 1024 * 1024;
 const TARGET_IMAGE_UPLOAD_BYTES = 950 * 1024;
+const MAX_PRICING_OPTIONS = 3;
+
+type PricingDraft = {
+  unit: string;
+  price: string;
+};
+
+const getProductId = (product: Partial<Product>) => String(product.id || (product as any)._id || '');
+
+const sortProductsByDisplayOrder = (items: Product[]) =>
+  items
+    .map((product, index) => ({ product, index }))
+    .sort((a, b) => {
+      const aOrder = Number((a.product as any).displayOrder);
+      const bOrder = Number((b.product as any).displayOrder);
+      const aValid = Number.isFinite(aOrder) && aOrder > 0;
+      const bValid = Number.isFinite(bOrder) && bOrder > 0;
+
+      if (aValid && bValid && aOrder !== bOrder) {
+        return aOrder - bOrder;
+      }
+
+      if (aValid !== bValid) {
+        return aValid ? -1 : 1;
+      }
+
+      return a.index - b.index;
+    })
+    .map(({ product }) => product);
+
+const withSequentialDisplayOrder = (items: Product[]) =>
+  items.map((product, index) => ({
+    ...product,
+    displayOrder: index + 1,
+  }));
+
+const buildPricingDraftsFromProduct = (product?: Partial<Product> | null): PricingDraft[] => {
+  const options = getProductPricingOptions(product || {});
+  if (options.length) {
+    return options.slice(0, MAX_PRICING_OPTIONS).map((option) => ({
+      unit: option.unit,
+      price: String(option.price),
+    }));
+  }
+
+  const primary = getPrimaryPricingOption(product || {});
+  return [{ unit: primary.unit || '1 kg', price: String(primary.price || '') }];
+};
 
 const blobToImage = (blob: Blob) =>
   new Promise<HTMLImageElement>((resolve, reject) => {
@@ -99,17 +156,76 @@ const AdminProducts = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    price: '',
-    unit: 'kg',
+    pricingOptions: [{ unit: '1 kg', price: '' }] as PricingDraft[],
     description: '',
+    displayPosition: '1',
   });
   const { toast } = useToast();
   const canManageProducts = user?.isSuperAdmin === true;
+
+  const maxDisplayPositionForForm = Math.max(1, products.length + (editingProduct ? 0 : 1));
+
+  const syncProductsSnapshot = (nextProducts: Product[], notify = false) => {
+    const sortedProducts = sortProductsByDisplayOrder(nextProducts);
+    setProducts(sortedProducts);
+    localStorage.setItem('fresco_products', JSON.stringify(sortedProducts));
+    if (notify) {
+      window.dispatchEvent(new Event('fresco_products_updated'));
+    }
+  };
 
   // Filter products based on search query
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const getReorderedProductsByPosition = (items: Product[], productId: string, targetPosition: number) => {
+    const fromIndex = items.findIndex((item) => getProductId(item) === productId);
+    if (fromIndex < 0) {
+      return withSequentialDisplayOrder(items);
+    }
+
+    const boundedTargetPosition = Math.max(1, Math.min(targetPosition, items.length));
+    const targetIndex = boundedTargetPosition - 1;
+    const reorderedProducts = [...items];
+    const [movedProduct] = reorderedProducts.splice(fromIndex, 1);
+    reorderedProducts.splice(targetIndex, 0, movedProduct);
+    return withSequentialDisplayOrder(reorderedProducts);
+  };
+
+  const persistProductOrder = async (orderedProducts: Product[]) => {
+    const token = localStorage.getItem('fresco_token');
+    const res = await fetch(`${VITE_API_BASE_URL}/api/admin/products/order`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        productIds: orderedProducts.map((product) => getProductId(product)),
+      }),
+    });
+
+    if (!res.ok) {
+      let errorMessage = 'Failed to update product order';
+      try {
+        const errorData = await res.json();
+        if (errorData?.error) {
+          errorMessage = String(errorData.error);
+        }
+      } catch {
+        const errorText = await res.text();
+        if (errorText) {
+          errorMessage = errorText;
+        }
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    const savedProducts = await res.json();
+    syncProductsSnapshot(savedProducts, true);
+  };
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -121,14 +237,14 @@ const AdminProducts = () => {
         
         if (res.ok) {
           const data = await res.json();
-          setProducts(data);
+          syncProductsSnapshot(data);
         }
       } catch (error) {
         console.error('Error loading products:', error);
       }
     };
 
-    loadProducts();
+    void loadProducts();
   }, []);
 
   useEffect(() => {
@@ -176,6 +292,52 @@ const AdminProducts = () => {
     }
   };
 
+  const updatePricingDraft = (index: number, key: keyof PricingDraft, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      pricingOptions: prev.pricingOptions.map((option, optionIndex) =>
+        optionIndex === index ? { ...option, [key]: value } : option
+      ),
+    }));
+  };
+
+  const addPricingDraft = () => {
+    setFormData((prev) => {
+      const dynamicMax = getMaxAllowedPricingOptions(prev.pricingOptions.map((option) => option.unit));
+      if (!dynamicMax || prev.pricingOptions.length >= dynamicMax) return prev;
+
+      const normalizedUnits = prev.pricingOptions
+        .map((option) => normalizeUnitLabel(option.unit || ''))
+        .filter(Boolean);
+      const allowedUnits = getAllowedPricingUnits(normalizedUnits);
+      if (!allowedUnits.length) return prev;
+
+      const usedUnits = new Set(
+        prev.pricingOptions
+          .map((option) => normalizeUnitLabel(option.unit || ''))
+          .filter(Boolean)
+      );
+      const nextUnit =
+        allowedUnits.find((unit) => !usedUnits.has(normalizeUnitLabel(unit))) || allowedUnits[0];
+
+      return {
+        ...prev,
+        pricingOptions: [...prev.pricingOptions, { unit: nextUnit, price: '' }],
+      };
+    });
+  };
+
+  const removePricingDraft = (index: number) => {
+    setFormData((prev) => {
+      if (prev.pricingOptions.length <= 1) return prev;
+
+      return {
+        ...prev,
+        pricingOptions: prev.pricingOptions.filter((_, optionIndex) => optionIndex !== index),
+      };
+    });
+  };
+
   const handleDelete = async (id: string) => {
     if (!canManageProducts) {
       toast({ title: 'Access denied', description: 'Only super admins can delete products', variant: 'destructive' });
@@ -190,9 +352,11 @@ const AdminProducts = () => {
       });
       
       if (res.ok) {
-        setProducts(products.filter(v => v.id !== id));
+        const nextProducts = withSequentialDisplayOrder(
+          products.filter((product) => getProductId(product) !== id)
+        );
+        syncProductsSnapshot(nextProducts, true);
         toast({ title: 'Success', description: 'Product deleted', variant: 'success' });
-        window.dispatchEvent(new Event('fresco_products_updated'));
       }
     } catch (error) {
       toast({ title: 'Error', description: 'Failed to delete product', variant: 'destructive' });
@@ -205,13 +369,17 @@ const AdminProducts = () => {
       return;
     }
 
+    const existingPositionIndex = products.findIndex((item) => getProductId(item) === getProductId(product));
+    const existingPosition =
+      existingPositionIndex >= 0 ? existingPositionIndex + 1 : Math.max(1, Number((product as any).displayOrder || 1));
+
     setEditingProduct(product);
     clearSelectedImage();
     setFormData({
       name: product.name,
-      price: product.price.toString(),
-      unit: (product as any).unit || 'kg',
+      pricingOptions: buildPricingDraftsFromProduct(product),
       description: product.description,
+      displayPosition: String(existingPosition),
     });
     setIsEditOpen(true);
   };
@@ -226,9 +394,9 @@ const AdminProducts = () => {
     clearSelectedImage();
     setFormData({
       name: '',
-      price: '',
-      unit: 'kg',
+      pricingOptions: [{ unit: '1 kg', price: '' }],
       description: '',
+      displayPosition: String(Math.max(1, products.length + 1)),
     });
     setIsEditOpen(true);
   };
@@ -240,10 +408,68 @@ const AdminProducts = () => {
     }
 
     const formPayload = new FormData();
-    if (!formData.name.trim() || Number(formData.price) <= 0) {
+    if (!formData.name.trim()) {
       toast({
         title: 'Missing required fields',
-        description: 'Please provide product name and price.',
+        description: 'Please provide product name.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const hasIncompletePricing = formData.pricingOptions.some((option) => {
+      const unit = normalizeUnitLabel(option.unit || '');
+      const price = Number(option.price);
+      return !unit || !Number.isFinite(price) || price <= 0;
+    });
+
+    if (hasIncompletePricing) {
+      toast({
+        title: 'Invalid pricing options',
+        description: 'Each pricing option must include a valid unit and a price greater than 0.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const normalizedUnits = formData.pricingOptions.map((option) => normalizeUnitLabel(option.unit || '')).filter(Boolean);
+    const allowedUnits = getAllowedPricingUnits(normalizedUnits);
+    if (!allowedUnits.length) {
+      toast({
+        title: 'Mixed unit types are not allowed',
+        description: 'Keep one product in a single unit family only: kg pair, dozen pair, or litre/ml set.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (new Set(normalizedUnits).size !== normalizedUnits.length) {
+      toast({
+        title: 'Duplicate units not allowed',
+        description: 'Please keep each pricing option unit unique.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const dynamicMax = getMaxAllowedPricingOptions(normalizedUnits);
+    if (formData.pricingOptions.length > dynamicMax) {
+      toast({
+        title: 'Too many pricing options',
+        description:
+          dynamicMax === 3
+            ? 'Liquid units allow up to 3 options (1 litre, 500 ml, 250 ml).'
+            : 'For kg/dozen units you can save up to 2 options.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const pricingOptions = sanitizePricingOptionsForSave(formData.pricingOptions);
+    if (!pricingOptions.length) {
+      toast({
+        title: 'Pricing required',
+        description: 'Please add at least one valid pricing option.',
         variant: 'destructive',
       });
       return;
@@ -258,9 +484,22 @@ const AdminProducts = () => {
       return;
     }
 
+    const rawDisplayPosition = Number(formData.displayPosition);
+    const targetDisplayPosition = Math.trunc(rawDisplayPosition);
+    const maxDisplayPosition = Math.max(1, products.length + (editingProduct ? 0 : 1));
+    if (!Number.isFinite(rawDisplayPosition) || targetDisplayPosition < 1 || targetDisplayPosition > maxDisplayPosition) {
+      toast({
+        title: 'Invalid display position',
+        description: `Please enter a display position between 1 and ${maxDisplayPosition}.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     formPayload.append('name', formData.name.trim());
-    formPayload.append('price', String(Number(formData.price)));
-    formPayload.append('unit', formData.unit || 'kg');
+    formPayload.append('pricingOptions', JSON.stringify(pricingOptions));
+    formPayload.append('price', String(pricingOptions[0].price));
+    formPayload.append('unit', pricingOptions[0].unit || '1 kg');
     formPayload.append('description', formData.description || '');
     if (imageFile) {
       formPayload.append('imageFile', imageFile);
@@ -287,9 +526,25 @@ const AdminProducts = () => {
         
         if (res.ok) {
           const updated = await res.json();
-          setProducts(products.map(v => (v.id || (v as any)._id) === editingProductId ? updated : v));
-          toast({ title: 'Success', description: 'Product updated successfully!', variant: 'default' });
-          window.dispatchEvent(new Event('fresco_products_updated'));
+          const nextProducts = products.map(v => getProductId(v) === editingProductId ? updated : v);
+          const reorderedProducts = getReorderedProductsByPosition(nextProducts, editingProductId, targetDisplayPosition);
+          let reorderWarning = '';
+
+          try {
+            await persistProductOrder(reorderedProducts);
+          } catch (orderError) {
+            syncProductsSnapshot(nextProducts, true);
+            reorderWarning =
+              orderError instanceof Error
+                ? orderError.message
+                : 'Saved product, but failed to apply display position.';
+          }
+
+          toast({
+            title: reorderWarning ? 'Product updated with warning' : 'Success',
+            description: reorderWarning || 'Product updated successfully!',
+            variant: reorderWarning ? 'destructive' : 'default',
+          });
           setIsEditOpen(false);
           setEditingProduct(null);
           clearSelectedImage();
@@ -324,9 +579,26 @@ const AdminProducts = () => {
         
         if (res.ok) {
           const created = await res.json();
-          setProducts([created, ...products]);
-          toast({ title: 'Success', description: 'Product added successfully!', variant: 'default' });
-          window.dispatchEvent(new Event('fresco_products_updated'));
+          const nextProducts = [...products, created];
+          const createdProductId = getProductId(created);
+          const reorderedProducts = getReorderedProductsByPosition(nextProducts, createdProductId, targetDisplayPosition);
+          let reorderWarning = '';
+
+          try {
+            await persistProductOrder(reorderedProducts);
+          } catch (orderError) {
+            syncProductsSnapshot(nextProducts, true);
+            reorderWarning =
+              orderError instanceof Error
+                ? orderError.message
+                : 'Saved product, but failed to apply display position.';
+          }
+
+          toast({
+            title: reorderWarning ? 'Product added with warning' : 'Success',
+            description: reorderWarning || 'Product added successfully!',
+            variant: reorderWarning ? 'destructive' : 'default',
+          });
           setIsEditOpen(false);
           setEditingProduct(null);
           clearSelectedImage();
@@ -361,7 +633,7 @@ const AdminProducts = () => {
     }
 
     try {
-      const product = products.find(v => v.id === id);
+      const product = products.find(v => getProductId(v) === id);
       if (!product) return;
 
       const token = localStorage.getItem('fresco_token');
@@ -378,13 +650,13 @@ const AdminProducts = () => {
 
       if (res.ok) {
         const updated = await res.json();
-        setProducts(products.map(v => v.id === id ? updated : v));
+        const nextProducts = products.map(v => getProductId(v) === id ? updated : v);
+        syncProductsSnapshot(nextProducts, true);
         toast({
           title: 'Updated',
           description: `Product marked ${updated.available ? 'available' : 'unavailable'}`,
           variant: 'default',
         });
-        window.dispatchEvent(new Event('fresco_products_updated'));
       } else {
         toast({
           title: 'Error',
@@ -430,8 +702,14 @@ const AdminProducts = () => {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-        {filteredProducts.map(product => (
-          <Card key={product.id} className="w-[96%] mx-auto sm:w-full overflow-hidden border-2 border-[#255c45] rounded-3xl transition-all duration-300 hover:shadow-xl flex flex-col h-full">
+        {filteredProducts.map((product) => {
+          const productId = getProductId(product);
+          const pricingOptions = getProductPricingOptions(product);
+          const primaryPricing = pricingOptions[0] || getPrimaryPricingOption(product);
+          const displayPricingOptions = pricingOptions.length ? pricingOptions : [primaryPricing];
+
+          return (
+          <Card key={productId} className="w-[96%] mx-auto sm:w-full overflow-hidden border-2 border-[#255c45] rounded-3xl transition-all duration-300 hover:shadow-xl flex flex-col h-full">
             <div className="relative">
               <img
                 src={product.image}
@@ -451,23 +729,43 @@ const AdminProducts = () => {
                   <h3 className="font-semibold text-base leading-snug break-words">{product.name || 'N/A'}</h3>
                 </div>
                 <p className="shrink-0 font-bold text-[#255c45] text-lg leading-none inline-flex items-baseline gap-1">
-                  ₹{Number(product.price || 0)}
-                  <span className="text-muted-foreground font-semibold text-sm">/{(product as any).unit || 'kg'}</span>
+                  ₹{Number(primaryPricing.price || 0)}
+                  <span className="text-muted-foreground font-semibold text-sm">/{primaryPricing.unit || '1 kg'}</span>
                 </p>
               </div>
               <p
-                className={`text-sm !text-[0.9rem] mb-auto line-clamp-3 text-muted-foreground leading-relaxed ${
-                  canManageProducts ? 'min-h-[64px]' : 'min-h-[40px]'
+                className={`text-sm !text-[0.9rem] mb-1 line-clamp-3 text-muted-foreground leading-relaxed ${
+                  canManageProducts ? 'min-h-[48px]' : 'min-h-[40px]'
                 }`}
               >
                 {product.description || 'No description available'}
               </p>
-              <div className="flex flex-col gap-2 mt-4">
+              {displayPricingOptions.length > 0 && (
+                <div
+                  className={`mt-0.5 grid ${
+                    displayPricingOptions.length >= 3
+                      ? 'grid-cols-3 gap-1.5'
+                      : displayPricingOptions.length === 2
+                        ? 'grid-cols-2 gap-3'
+                        : 'grid-cols-1'
+                  }`}
+                >
+                  {displayPricingOptions.map((option) => (
+                    <span
+                      key={`${productId}-${option.unit}`}
+                      className="inline-flex w-full items-center justify-center whitespace-nowrap rounded-full border border-[#255c45] bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-[#255c45]"
+                    >
+                      {option.unit}: ₹{option.price}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="mt-auto flex flex-col gap-2 pt-3">
                 {canManageProducts ? (
                   <>
                     <div className="grid grid-cols-2 gap-2">
                       <Button 
-                        onClick={() => toggleAvailability(product.id)} 
+                        onClick={() => toggleAvailability(productId)} 
                         variant="outline" 
                         className="w-full h-11 text-sm border-[#255c45]"
                         size="sm"
@@ -478,7 +776,7 @@ const AdminProducts = () => {
                         Edit
                       </Button>
                     </div>
-                    <Button onClick={() => handleRequestDelete(product.id)} variant="destructive" size="sm" className="w-full text-sm">
+                    <Button onClick={() => handleRequestDelete(productId)} variant="destructive" size="sm" className="w-full text-sm">
                       Delete
                     </Button>
                   </>
@@ -488,7 +786,8 @@ const AdminProducts = () => {
               </div>
             </div>
           </Card>
-        ))}
+          );
+        })}
         {filteredProducts.length === 0 && (
           <div className="col-span-full">
             <Card className="w-full p-6 sm:p-8 text-center border-2 border-[#255c45]">
@@ -501,132 +800,221 @@ const AdminProducts = () => {
       </div>
       {/* Edit/Add Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="w-[92vw] sm:w-[95vw] max-w-2xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-[28px] border-2 border-[#255c45] p-4 sm:p-6">
-          <DialogHeader>
-            <DialogTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
+        <DialogContent className="w-[92vw] sm:w-[95vw] max-w-2xl max-h-[92vh] overflow-hidden rounded-2xl sm:rounded-[28px] border-2 border-[#255c45] p-0 flex flex-col gap-0">
+          <DialogHeader className="shrink-0 border-b border-[#255c45]/20 bg-slate-100/95 px-4 pt-3.5 pb-2.5 sm:px-5 sm:pt-3 sm:pb-2.5">
+            <DialogTitle className="w-full text-center text-[1.45rem] sm:text-[1.68rem] leading-tight">{editingProduct ? 'Edit Product' : 'Add New Product'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Product Name</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="h-12 rounded-xl sm:rounded-2xl border-2 border-[#255c45] px-4 focus-visible:ring-0 focus-visible:border-[#255c45] focus:outline-none"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="rounded-xl sm:rounded-2xl border-2 border-[#255c45] px-4 py-3 focus-visible:ring-0 focus-visible:border-[#255c45] focus:outline-none"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-4 sm:px-6 sm:pt-5 sm:pb-5">
+            <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="price">Price</Label>
+                <Label htmlFor="name">Product Name</Label>
                 <Input
-                  id="price"
-                  type="number"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="h-12 rounded-xl sm:rounded-2xl border-2 border-[#255c45] px-4 focus-visible:ring-0 focus-visible:border-[#255c45] focus:outline-none"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="unit">Unit</Label>
-                <select
-                  id="unit"
-                  value={formData.unit}
-                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                  className="w-full h-12 appearance-none rounded-xl sm:rounded-2xl border-2 border-[#255c45] bg-white px-4 pr-10 text-sm shadow-sm transition-colors focus:outline-none focus:border-[#255c45] focus:ring-0 bg-no-repeat bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20fill=%22none%22%20viewBox=%220%200%2024%2024%22%20stroke-width=%222%22%20stroke=%22%23255c45%22%3E%3Cpath%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22%20d=%22M19.5%208.25l-7.5%207.5-7.5-7.5%22%20/%3E%3C/svg%3E')] bg-[position:right_1rem_center] bg-[length:1.25rem_1.25rem]"
-                >
-                  {UNIT_OPTIONS.map((unit) => (
-                    <option key={unit} value={unit}>{unit}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="imageFile">Upload Image</Label>
-              <input
-                id="imageFile"
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const selectedFile = e.target.files?.[0] || null;
-                  void handleImageSelection(selectedFile);
-                }}
-              />
-              <div className="rounded-xl sm:rounded-2xl border-2 border-[#255c45] bg-background p-3">
-                <div className="flex flex-col md:flex-row gap-4 md:items-start">
-                  <div className="flex-1 space-y-3">
-                    <div className="flex items-center gap-3 rounded-xl border border-[#255c45]/60 bg-white px-3 py-2.5">
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="rounded-xl sm:rounded-2xl border-2 border-[#255c45] px-4 py-3 focus-visible:ring-0 focus-visible:border-[#255c45] focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Pricing Options</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-10 rounded-xl border-2 border-[#255c45] bg-white text-[#255c45] hover:bg-emerald-50 hover:text-[#255c45]"
+                    onClick={addPricingDraft}
+                    disabled={formData.pricingOptions.length >= getMaxAllowedPricingOptions(formData.pricingOptions.map((option) => option.unit))}
+                  >
+                    + Add option
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {formData.pricingOptions.map((option, index) => {
+                    const currentRowUnit = normalizeUnitLabel(option.unit || '');
+                    const unitsFromOtherRows = formData.pricingOptions
+                      .map((entry, entryIndex) =>
+                        entryIndex === index ? '' : normalizeUnitLabel(entry.unit || '')
+                      )
+                      .filter(Boolean);
+                    const allowedUnitsForRow = getAllowedPricingUnits(unitsFromOtherRows);
+                    const blockedUnits = new Set(
+                      formData.pricingOptions
+                        .map((entry, entryIndex) =>
+                          entryIndex === index ? '' : normalizeUnitLabel(entry.unit || '')
+                        )
+                        .filter(Boolean)
+                    );
+
+                    return (
+                    <div key={`pricing-row-${index}`} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_140px_auto] gap-3 items-end rounded-xl border-2 border-[#255c45] bg-white p-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Unit</Label>
+                        <Select value={option.unit} onValueChange={(value) => updatePricingDraft(index, 'unit', value)}>
+                          <SelectTrigger className="h-11 rounded-xl border-2 border-[#255c45] px-3 text-sm shadow-sm focus:border-[#255c45] focus:ring-0">
+                            <SelectValue placeholder="Select unit" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-72 rounded-2xl border-[#255c45] bg-white">
+                            {PRODUCT_UNIT_OPTIONS.map((unit) => {
+                                const normalizedUnit = normalizeUnitLabel(unit);
+                                const isDuplicate = blockedUnits.has(normalizedUnit);
+                                const isOutsideFamily =
+                                  allowedUnitsForRow.length > 0 && !allowedUnitsForRow.includes(normalizedUnit);
+                                const isCurrent = normalizedUnit === currentRowUnit;
+                                const isBlocked = !isCurrent && (isDuplicate || isOutsideFamily);
+
+                              return (
+                                <SelectItem
+                                  key={unit}
+                                  value={unit}
+                                  disabled={isBlocked}
+                                  className={`text-base focus:bg-amber-400 focus:text-slate-900 data-[state=checked]:bg-amber-400 data-[state=checked]:text-slate-900 ${
+                                    isBlocked ? 'opacity-50 text-muted-foreground' : ''
+                                  }`}
+                                >
+                                  {unit}
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Price</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={option.price}
+                          onChange={(e) => updatePricingDraft(index, 'price', e.target.value)}
+                          className="h-11 rounded-xl border-2 border-[#255c45] px-3 focus-visible:ring-0 focus-visible:border-[#255c45] focus:outline-none"
+                        />
+                      </div>
+
                       <Button
                         type="button"
-                        className="h-10 rounded-xl border border-amber-300 bg-amber-400 px-5 text-slate-900 hover:bg-amber-500"
-                        onClick={() => fileInputRef.current?.click()}
+                        className="h-11 border-0 bg-red-500 text-white hover:bg-red-600 disabled:bg-red-300 disabled:text-white"
+                        onClick={() => removePricingDraft(index)}
+                        disabled={formData.pricingOptions.length <= 1}
                       >
-                        Choose File
+                        Remove
                       </Button>
-                      <span className="text-sm text-foreground truncate">
-                        {imageFile ? imageFile.name : 'No file chosen'}
-                      </span>
+                    </div>
+                    );
+                  })}
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  Add between 1 and 3 unit-price options. Keep units in one family only (kg pair, dozen pair, or litre/ml set).
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="imageFile">Upload Image</Label>
+                <input
+                  id="imageFile"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const selectedFile = e.target.files?.[0] || null;
+                    void handleImageSelection(selectedFile);
+                  }}
+                />
+                <div className="rounded-xl sm:rounded-2xl border-2 border-[#255c45] bg-background p-3">
+                  <div className="flex min-w-0 flex-col gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-3 overflow-hidden rounded-xl border border-black bg-white px-3 py-2.5">
+                        <Button
+                          type="button"
+                          className="h-10 shrink-0 rounded-xl border border-amber-300 bg-amber-400 px-5 text-slate-900 hover:bg-amber-500"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          Choose File
+                        </Button>
+                        <span className="min-w-0 flex-1 truncate whitespace-nowrap text-sm text-foreground" title={imageFile ? imageFile.name : 'No file chosen'}>
+                          {imageFile ? imageFile.name : 'No file chosen'}
+                        </span>
+                      </div>
                     </div>
 
                     {(imageFile || editingProduct?.image) && (
-                      <div className="flex flex-wrap items-center gap-2">
-                        {imageFile && (
-                          <Button type="button" variant="destructive" size="sm" onClick={clearSelectedImage}>
-                            <Trash2 className="w-4 h-4" />
-                            Remove selected image
+                      <div className="flex items-end justify-between gap-3">
+                        <div className="flex flex-col items-start justify-end gap-2">
+                          {imageFile && (
+                            <Button type="button" variant="destructive" size="sm" onClick={clearSelectedImage}>
+                              <Trash2 className="w-4 h-4" />
+                              Remove selected image
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="border border-amber-300 bg-amber-400 text-slate-900 hover:bg-amber-500"
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            Change image
                           </Button>
-                        )}
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="border border-amber-300 bg-amber-400 text-slate-900 hover:bg-amber-500"
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          Change image
-                        </Button>
+                        </div>
+
+                        <div className="w-36 shrink-0">
+                          <img
+                            src={imagePreviewUrl || editingProduct?.image}
+                            alt="Selected product preview"
+                            className="w-36 h-24 rounded-xl border border-[#255c45] object-cover bg-muted"
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
-
-                  {(imageFile || editingProduct?.image) && (
-                    <div className="w-full md:w-auto shrink-0">
-                      <img
-                        src={imagePreviewUrl || editingProduct?.image}
-                        alt="Selected product preview"
-                        className="w-full md:w-36 h-24 rounded-xl border border-[#255c45] object-cover bg-muted"
-                      />
-                    </div>
-                  )}
                 </div>
+
+                <p className="text-xs text-muted-foreground">
+                  Choose a file from your computer. It will be uploaded to Cloudinary automatically.
+                </p>
               </div>
 
-              <p className="text-xs text-muted-foreground">
-                Choose a file from your computer. It will be uploaded to Cloudinary automatically.
-              </p>
+              <div className="space-y-2">
+                <Label htmlFor="displayPosition">Display Position</Label>
+                <Input
+                  id="displayPosition"
+                  type="number"
+                  min={1}
+                  max={maxDisplayPositionForForm}
+                  value={formData.displayPosition}
+                  onChange={(e) => setFormData({ ...formData, displayPosition: e.target.value })}
+                  className="h-12 rounded-xl sm:rounded-2xl border-2 border-[#255c45] px-4 focus-visible:ring-0 focus-visible:border-[#255c45] focus:outline-none"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Enter a position from 1 to {maxDisplayPositionForForm}. The selected product will move there and the others will shift automatically.
+                </p>
+              </div>
             </div>
+          </div>
 
-            <div className="flex items-center justify-between gap-3 pt-2">
+          <div className="shrink-0 border-t border-[#255c45]/20 bg-slate-100/95 px-4 py-3 sm:px-6 sm:py-3.5">
+            <div className="grid grid-cols-2 gap-3">
               <Button
                 type="button"
-                className="h-11 rounded-xl sm:rounded-2xl border border-amber-300 bg-amber-400 px-6 text-slate-900 hover:bg-amber-500"
+                className="h-11 w-full rounded-xl sm:rounded-2xl border border-amber-300 bg-amber-400 px-6 text-slate-900 hover:bg-amber-500"
                 onClick={() => setIsEditOpen(false)}
               >
                 Cancel
               </Button>
-              <Button className="h-11 rounded-xl sm:rounded-2xl px-6" onClick={handleUpdate} disabled={isSaving}>
+              <Button className="h-11 w-full rounded-xl sm:rounded-2xl px-6" onClick={handleUpdate} disabled={isSaving}>
                 {isSaving ? 'Saving...' : 'Save'}
               </Button>
             </div>

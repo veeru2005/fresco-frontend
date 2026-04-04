@@ -3,12 +3,37 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Product } from '@/data/mockData';
 import { Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { addToCart } from '@/lib/cart';
+import { getPricingOptionByUnit, getProductPricingOptions, getPrimaryPricingOption } from '@/lib/pricing';
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
+type ProductAction = 'cart' | 'buy_now';
+
+const sortProductsByDisplayOrder = (items: Product[]) =>
+  items
+    .map((product, index) => ({ product, index }))
+    .sort((a, b) => {
+      const aOrder = Number((a.product as any).displayOrder);
+      const bOrder = Number((b.product as any).displayOrder);
+      const aValid = Number.isFinite(aOrder) && aOrder > 0;
+      const bValid = Number.isFinite(bOrder) && bOrder > 0;
+
+      if (aValid && bValid && aOrder !== bOrder) {
+        return aOrder - bOrder;
+      }
+
+      if (aValid !== bValid) {
+        return aValid ? -1 : 1;
+      }
+
+      return a.index - b.index;
+    })
+    .map(({ product }) => product);
 
 const Booking = () => {
   const navigate = useNavigate();
@@ -16,7 +41,18 @@ const Booking = () => {
   const { isAuthenticated } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [qty, setQty] = useState<Record<string, number>>({});
+  const [selectedUnits, setSelectedUnits] = useState<Record<string, string>>({});
+  const [sizePicker, setSizePicker] = useState<{
+    open: boolean;
+    product: Product | null;
+    action: ProductAction | null;
+    unit: string;
+  }>({
+    open: false,
+    product: null,
+    action: null,
+    unit: '',
+  });
 
   // Filter products based on search query
   const filteredProducts = products.filter(product =>
@@ -32,9 +68,10 @@ const Booking = () => {
         const res = await fetch(`${VITE_API_BASE_URL}/api/products`);
         if (res.ok) {
           const data = await res.json();
-          setProducts(data);
+          const sortedProducts = sortProductsByDisplayOrder(data);
+          setProducts(sortedProducts);
           // Also store in localStorage as backup
-          localStorage.setItem('fresco_products', JSON.stringify(data));
+          localStorage.setItem('fresco_products', JSON.stringify(sortedProducts));
           return;
         }
       } catch (error) {
@@ -44,27 +81,50 @@ const Booking = () => {
       // Fallback to localStorage
       const storedProducts = localStorage.getItem('fresco_products');
       if (storedProducts) {
-        setProducts(JSON.parse(storedProducts));
+        const parsedProducts = JSON.parse(storedProducts) as Product[];
+        setProducts(sortProductsByDisplayOrder(parsedProducts));
       } else {
         // Import and use default products
         import('@/data/mockData').then((module) => {
-          setProducts(module.products);
+          setProducts(sortProductsByDisplayOrder(module.products));
         });
       }
     };
 
-    loadProducts();
+    void loadProducts();
 
     // reload products when admin updates them in another part of the app
     const onUpdate = () => {
-      const stored = localStorage.getItem('fresco_products');
-      if (stored) setProducts(JSON.parse(stored));
+      void loadProducts();
     };
     window.addEventListener('fresco_products_updated', onUpdate);
     return () => window.removeEventListener('fresco_products_updated', onUpdate);
   }, []);
 
-  const handleBuyNow = (product: Product) => {
+  useEffect(() => {
+    setSelectedUnits((prev) => {
+      const next: Record<string, string> = {};
+
+      products.forEach((product) => {
+        const options = getProductPricingOptions(product);
+        const preferred = getPricingOptionByUnit(product, prev[product.id]);
+        next[product.id] = preferred.unit || options[0]?.unit || getPrimaryPricingOption(product).unit;
+      });
+
+      return next;
+    });
+  }, [products]);
+
+  const getSelectedPricing = (product: Product) => {
+    return getPricingOptionByUnit(product, selectedUnits[product.id]);
+  };
+  const pickerOptions = sizePicker.product ? getProductPricingOptions(sizePicker.product) : [];
+
+  const handleUnitChange = (productId: string, unit: string) => {
+    setSelectedUnits((prev) => ({ ...prev, [productId]: unit }));
+  };
+
+  const handleBuyNow = (product: Product, unitOverride?: string) => {
     if (!product.available) {
       toast({
         title: 'Product Unavailable',
@@ -84,10 +144,17 @@ const Booking = () => {
       return;
     }
 
+    const selectedPricing = getPricingOptionByUnit(product, unitOverride || selectedUnits[product.id]);
+    const selectedProduct = {
+      ...product,
+      price: Number(selectedPricing.price || product.price || 0),
+      unit: selectedPricing.unit,
+    };
+
     localStorage.removeItem('selected_cart');
     localStorage.setItem('checkout_source', 'buy_now');
-    localStorage.setItem('selected_product', JSON.stringify(product));
-    localStorage.setItem('selected_quantity', String(qty[product.id] || 1));
+    localStorage.setItem('selected_product', JSON.stringify(selectedProduct));
+    localStorage.setItem('selected_quantity', '1');
     toast({
       title: 'Product Selected',
       description: `${product.name} has been selected. Please enter delivery details.`,
@@ -95,7 +162,7 @@ const Booking = () => {
     navigate('/delivery-details');
   };
 
-  const handleAddToCart = (product: Product) => {
+  const handleAddToCart = (product: Product, unitOverride?: string) => {
     if (!product.available) {
       toast({
         title: 'Product Unavailable',
@@ -115,17 +182,19 @@ const Booking = () => {
       return;
     }
 
+    const selectedPricing = getPricingOptionByUnit(product, unitOverride || selectedUnits[product.id]);
+
     addToCart(
       {
         id: product.id,
         name: product.name,
         type: product.type,
-        price: product.price,
+        price: Number(selectedPricing.price || product.price || 0),
         image: product.image,
-        unit: (product as any).unit || 'kg',
+        unit: selectedPricing.unit,
         available: product.available,
       },
-      qty[product.id] || 1
+      1
     );
 
     toast({
@@ -135,11 +204,67 @@ const Booking = () => {
     });
   };
 
-  const setProductQty = (id: string, delta: number) => {
-    setQty((prev) => {
-      const next = (prev[id] || 1) + delta;
-      return { ...prev, [id]: Math.max(1, next) };
+  const closeSizePicker = () => {
+    setSizePicker({ open: false, product: null, action: null, unit: '' });
+  };
+
+  const requestProductAction = (product: Product, action: ProductAction) => {
+    if (!product.available) {
+      toast({
+        title: 'Product Unavailable',
+        description: 'This product is currently out of stock.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!isAuthenticated) {
+      toast({
+        title: 'Sign In Required',
+        description: 'Please sign in to continue.',
+        variant: 'destructive',
+      });
+      navigate('/signin', { state: { redirectTo: '/products' } });
+      return;
+    }
+
+    const options = getProductPricingOptions(product);
+    if (options.length <= 1) {
+      const defaultUnit = options[0]?.unit || getPrimaryPricingOption(product).unit;
+      setSelectedUnits((prev) => ({ ...prev, [product.id]: defaultUnit }));
+
+      if (action === 'cart') {
+        handleAddToCart(product, defaultUnit);
+      } else {
+        handleBuyNow(product, defaultUnit);
+      }
+      return;
+    }
+
+    const currentSelection = getPricingOptionByUnit(product, selectedUnits[product.id]).unit || options[0].unit;
+    setSizePicker({
+      open: true,
+      product,
+      action,
+      unit: currentSelection,
     });
+  };
+
+  const confirmSizePickerAction = () => {
+    if (!sizePicker.product || !sizePicker.action) return;
+
+    const chosenUnit = sizePicker.unit || getPrimaryPricingOption(sizePicker.product).unit;
+    const product = sizePicker.product;
+    const action = sizePicker.action;
+
+    setSelectedUnits((prev) => ({ ...prev, [product.id]: chosenUnit }));
+    closeSizePicker();
+
+    if (action === 'cart') {
+      handleAddToCart(product, chosenUnit);
+    } else {
+      handleBuyNow(product, chosenUnit);
+    }
   };
 
   return (
@@ -167,78 +292,101 @@ const Booking = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
           {filteredProducts.length > 0 ? (
-            filteredProducts.map((product) => (
-            <Card
-              key={product.id}
-              className={`w-[96%] mx-auto sm:w-full overflow-hidden border-2 border-[#2f7d5b] rounded-3xl transition-all duration-300 flex flex-col h-full ${
-                product.available ? 'hover:shadow-xl' : 'opacity-70 saturate-50'
-              }`}
-            >
-              <div className="relative h-56 overflow-hidden bg-muted">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className={`w-full h-full object-cover ${product.available ? '' : 'grayscale'}`}
-                />
-                <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-medium ${product.available ? 'bg-[#2f7d5b] text-white' : 'bg-red-500 text-white'}`}>
-                  {product.available ? 'In Stock' : 'Out of Stock'}
-                </div>
-              </div>
+            filteredProducts.map((product) => {
+              const pricingOptions = getProductPricingOptions(product);
+              const selectedPricing = getSelectedPricing(product);
+              const displayPricingOptions = pricingOptions.length ? pricingOptions : [selectedPricing];
 
-              <div className="px-5 py-6 flex flex-col flex-1">
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="min-w-0">
-                    <h3 className="text-base font-semibold leading-snug break-words">{product.name}</h3>
+              return (
+                <Card
+                  key={product.id}
+                  className={`w-[96%] mx-auto sm:w-full overflow-hidden border-2 border-[#2f7d5b] rounded-3xl transition-all duration-300 flex flex-col h-full ${
+                    product.available ? 'hover:shadow-xl' : 'opacity-70 saturate-50'
+                  }`}
+                >
+                  <div className="relative h-56 overflow-hidden bg-muted">
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className={`w-full h-full object-cover ${product.available ? '' : 'grayscale'}`}
+                    />
+                    <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-medium ${product.available ? 'bg-[#2f7d5b] text-white' : 'bg-red-500 text-white'}`}>
+                      {product.available ? 'In Stock' : 'Out of Stock'}
+                    </div>
                   </div>
-                  <span className="shrink-0 text-lg font-bold text-[#2f7d5b] whitespace-nowrap inline-flex items-baseline gap-1 leading-none">
-                    ₹{Number(product.price || 0)}
-                    <span className="text-sm font-semibold text-muted-foreground">/{(product as any).unit || 'kg'}</span>
-                  </span>
-                </div>
 
-                <p className="text-muted-foreground text-sm mb-auto min-h-[60px] leading-relaxed">
-                  {product.description}
-                </p>
+                  <div className="px-4 py-6 sm:px-5 flex flex-col flex-1">
+                      <div className="mb-2 flex items-start justify-between gap-3 sm:block">
+                        <h3 className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-base font-semibold leading-snug sm:overflow-visible sm:whitespace-normal sm:break-words">{product.name}</h3>
+                        <span className="shrink-0 inline-flex items-baseline gap-1 whitespace-nowrap text-lg font-bold leading-none text-[#2f7d5b] sm:mt-1 sm:w-fit sm:flex">
+                        ₹{Number(selectedPricing.price || 0)}
+                        <span className="text-sm font-semibold text-muted-foreground">/{selectedPricing.unit || '1 kg'}</span>
+                      </span>
+                    </div>
 
-                <div className={`mt-3 mx-auto w-[92%] flex items-center justify-between border border-foreground rounded-lg px-2.5 py-1.5 mb-2 bg-white ${product.available ? '' : 'bg-muted/60 opacity-60'}`}>
-                  <button
-                    type="button"
-                    className="text-xl font-semibold text-foreground px-2 py-0.5 flex items-center justify-center leading-none disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 rounded-sm transition-colors"
-                    onClick={() => setProductQty(product.id, -1)}
-                    disabled={!product.available}
-                  >
-                    -
-                  </button>
-                  <span className="font-semibold text-base text-slate-700 min-w-[2ch] text-center">{qty[product.id] || 1}</span>
-                  <button
-                    type="button"
-                    className="text-xl font-semibold text-foreground px-2 py-0.5 flex items-center justify-center leading-none disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 rounded-sm transition-colors"
-                    onClick={() => setProductQty(product.id, 1)}
-                    disabled={!product.available}
-                  >
-                    +
-                  </button>
-                </div>
+                    <p className="text-muted-foreground text-sm min-h-[55px] leading-relaxed">
+                      {product.description}
+                    </p>
 
-                <div className="grid grid-cols-2 gap-3 mt-1 mx-auto w-[92%]">
-                  <Button
-                    onClick={() => handleAddToCart(product)}
-                    disabled={!product.available}
-                    className="w-full bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed"
-                  >
-                    Cart
-                  </Button>
-                  <Button
-                    onClick={() => handleBuyNow(product)}
-                    disabled={!product.available}
-                    className="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed"
-                  >
-                    Buy Now
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))
+                    {displayPricingOptions.length > 0 && (
+                      <div className="mt-1 mb-0 w-full min-h-[40px]">
+                        <div
+                          className={`grid ${
+                            displayPricingOptions.length >= 3
+                              ? 'grid-cols-3 gap-1.5'
+                              : displayPricingOptions.length === 2
+                                ? 'grid-cols-2 gap-3'
+                                : 'grid-cols-1'
+                          }`}
+                        >
+                          {displayPricingOptions.map((option) => {
+                            const isSelected = option.unit === selectedPricing.unit;
+                            return (
+                              <button
+                                key={`${product.id}-${option.unit}`}
+                                type="button"
+                                onClick={() => handleUnitChange(product.id, option.unit)}
+                                disabled={!product.available}
+                                className={`w-full whitespace-nowrap rounded-full border px-2.5 py-1.5 text-[11px] font-semibold transition-colors ${
+                                  isSelected
+                                    ? 'border-[#255c45] bg-[#255c45] text-white'
+                                    : 'border-[#255c45] bg-emerald-50 text-[#255c45] hover:bg-emerald-100'
+                                } ${!product.available ? 'opacity-70 cursor-not-allowed' : ''}`}
+                              >
+                                {option.unit}: ₹{Number(option.price || 0)}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {displayPricingOptions.length > 1 && product.available && (
+                      <p className="mb-1 text-center text-[11px] text-muted-foreground sm:text-s">
+                        Select your preferred quantity.
+                      </p>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-3 mt-1 w-full">
+                      <Button
+                        onClick={() => requestProductAction(product, 'cart')}
+                        disabled={!product.available}
+                        className="w-full bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed"
+                      >
+                        Cart
+                      </Button>
+                      <Button
+                        onClick={() => requestProductAction(product, 'buy_now')}
+                        disabled={!product.available}
+                        className="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed"
+                      >
+                        Buy Now
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })
           ) : (
             <div className="col-span-full">
               <Card className="w-full border-2 border-[#255c45]">
@@ -256,6 +404,62 @@ const Booking = () => {
             </div>
           )}
         </div>
+
+        <Dialog open={sizePicker.open} onOpenChange={(open) => !open && closeSizePicker()}>
+          <DialogContent className="w-[92vw] max-w-sm rounded-2xl border-2 border-[#255c45] p-4">
+            <DialogHeader>
+              <DialogTitle className="text-left text-xl">Choose Size</DialogTitle>
+            </DialogHeader>
+
+            {sizePicker.product && (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">{sizePicker.product.name}</p>
+
+                <div
+                  className={`grid ${
+                    pickerOptions.length >= 3
+                      ? 'grid-cols-3 gap-2'
+                      : pickerOptions.length === 2
+                        ? 'grid-cols-2 gap-2.5'
+                        : 'grid-cols-1'
+                  }`}
+                >
+                  {pickerOptions.map((option) => {
+                    const isChosen = option.unit === sizePicker.unit;
+
+                    return (
+                      <button
+                        key={`picker-${sizePicker.product?.id}-${option.unit}`}
+                        type="button"
+                        onClick={() => setSizePicker((prev) => ({ ...prev, unit: option.unit }))}
+                        className={`w-full whitespace-nowrap rounded-full border px-2 py-2 text-[13px] font-semibold transition-colors sm:px-3 sm:text-sm ${
+                          isChosen
+                            ? 'border-[#255c45] bg-[#255c45] text-white'
+                            : 'border-[#255c45] bg-emerald-50 text-[#255c45] hover:bg-emerald-100'
+                        }`}
+                      >
+                        {option.unit}: ₹{Number(option.price || 0)}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className="-my-0 text-center text-[11px] leading-5 text-muted-foreground sm:text-xs">
+                  Select your preferred quantity.
+                </p>
+
+                <div className="grid grid-cols-2 gap-3 pt-0">
+                  <Button type="button" className="border-0 bg-amber-500 text-slate-900 hover:bg-amber-600" onClick={closeSizePicker}>
+                    Cancel
+                  </Button>
+                  <Button type="button" className="bg-[#255c45] hover:bg-[#214f3b]" onClick={confirmSizePickerAction}>
+                    Continue
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

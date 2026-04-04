@@ -206,8 +206,8 @@ const Navbar = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 md:h-20">
             <Link to="/" className="flex items-center gap-2 group">
-              <div className="bg-amber-400 p-2 rounded-lg group-hover:scale-110 transition-transform duration-300 shadow-sm">
-                <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-[#255c45]" />
+              <div className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-[8px] overflow-hidden group-hover:scale-105 transition-transform duration-300 shadow-sm bg-white">
+                <img src="https://res.cloudinary.com/dv5qxkxmc/image/upload/v1775308892/2_oast1m.jpg" alt="Fresco Organics logo" className="h-full w-full object-cover scale-110" />
               </div>
               <span className="flex items-baseline gap-2">
                 <span className="text-xl sm:text-2xl font-bold text-white">Fresco</span>
@@ -302,8 +302,8 @@ const Navbar = () => {
             aria-label="Close menu"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="relative bg-[#255c45] text-white border-t border-white/20 shadow-xl animate-in slide-in-from-top duration-200 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+12px)]">
-            <div className="container mx-auto px-4 py-5">
+          <div className="relative bg-[#255c45] text-white border-t border-white/20 border-b-2 border-amber-300/70 shadow-xl animate-in slide-in-from-top duration-200 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+4px)]">
+            <div className="container mx-auto px-4 py-3">
 
               <div className="flex flex-col gap-2 items-center text-center">
                 {mobileMenuLinks.map((link) => (
@@ -384,8 +384,8 @@ const Navbar = () => {
 
       {/* Mobile Bottom Navigation */}
       {mobileBottomLinks.length > 0 && (
-        <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 bg-[#255c45] border-t border-white/20 shadow-[0_-8px_24px_rgba(0,0,0,0.2)] px-2 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)]">
-          <div className="rounded-2xl border border-white/20 bg-[#255c45] shadow-lg px-2 py-2">
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-30 bg-[#255c45] border-t border-white/30 shadow-[0_-8px_24px_rgba(0,0,0,0.2)] px-2 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)]">
+          <div className="rounded-2xl border border-white/35 bg-[#255c45] shadow-lg px-2 py-2">
             <div
               className="grid gap-1"
               style={{ gridTemplateColumns: `repeat(${mobileBottomLinks.length}, minmax(0, 1fr))` }}

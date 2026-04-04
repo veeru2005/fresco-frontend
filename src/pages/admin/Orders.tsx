@@ -10,6 +10,18 @@ import ConfirmActionDialog from '@/components/ConfirmActionDialog';
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 import { ChevronDown, Search, ShoppingBag, Trash2 } from 'lucide-react';
 
+const formatOrderedItemLabel = (item: any) => {
+  const itemName = String(item?.name || 'Item');
+  const quantity = Math.max(1, Number(item?.quantity || 1));
+  const unit = String(item?.unit || '').trim();
+
+  if (unit) {
+    return quantity > 1 ? `${itemName} ${quantity} x ${unit}` : `${itemName} (${unit})`;
+  }
+
+  return `${itemName} x${quantity}`;
+};
+
 interface Order {
   id: string;
   orderId: string;
@@ -20,6 +32,7 @@ interface Order {
     name: string;
     image?: string;
     quantity: number;
+    unit?: string;
     unitPrice?: number;
     itemAmount?: number;
   }>;
@@ -292,7 +305,7 @@ const AdminOrders = () => {
               const isExpanded = expandedOrderIds.has(String(order.id));
               const deliveryAddress = String(order.deliveryAddress || order.address || '').trim();
               const orderedItemsLabel = orderedItems
-                .map((item) => `${item.name} x${Math.max(1, Number(item.quantity || 1))}`)
+                .map((item) => formatOrderedItemLabel(item))
                 .join(', ');
 
               return (
@@ -459,7 +472,11 @@ const AdminOrders = () => {
                                 />
                                 <div className="min-w-0">
                                   <p className="font-medium text-sm leading-tight break-words">{item.name || 'Item'}</p>
-                                  <p className="text-xs text-muted-foreground">Qty: {Math.max(1, Number(item.quantity || 1))}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    Qty: {Math.max(1, Number(item.quantity || 1))}
+                                    {item.unit ? ` (${String(item.unit).trim()})` : ''}
+                                    {Number(item.unitPrice || 0) > 0 ? ` • ₹${Number(item.unitPrice || 0)} each` : ''}
+                                  </p>
                                 </div>
                               </div>
                               <p className="text-sm font-semibold text-right shrink-0">₹{Number(item.itemAmount || 0)}</p>

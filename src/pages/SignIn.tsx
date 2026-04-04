@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { getGoogleClientIdForCurrentOrigin, getGoogleOriginConfigMessage } from '@/lib/googleAuth';
-import { ShoppingCart } from 'lucide-react';
 import Lottie from 'lottie-react';
 
 const GOOGLE_SCRIPT_ID = 'google-identity-script';
@@ -165,8 +164,8 @@ const SignIn = () => {
     <div className="min-h-full flex items-start justify-center px-4 pb-24 pt-6 sm:pb-16 sm:pt-8 lg:pb-20 bg-background sm:bg-gradient-to-br sm:from-primary/10 sm:via-background sm:to-secondary/10">
       <div className="w-full max-w-[460px] mx-auto">
         <div className="flex items-center justify-center gap-3 mb-3">
-          <div className="bg-amber-400 p-3 rounded-2xl shadow-sm">
-            <ShoppingCart className="w-7 h-7 text-[#255c45]" />
+          <div className="relative h-12 w-12 overflow-hidden rounded-[10px] shadow-sm outline outline-2 outline-[#255c45]">
+            <img src="https://res.cloudinary.com/dv5qxkxmc/image/upload/v1775308892/2_oast1m.jpg" alt="Fresco Organics logo" className="h-full w-full object-cover scale-110" />
           </div>
           <p className="text-2xl sm:text-3xl font-bold text-[#255c45] leading-none">
             Fresco <span className="text-amber-500 !text-2xl sm:!text-3xl !font-bold">Organics</span>

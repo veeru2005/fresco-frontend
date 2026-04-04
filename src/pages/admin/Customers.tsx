@@ -1,16 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import ConfirmActionDialog from '@/components/ConfirmActionDialog';
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 import { Search, Trash2, Users } from 'lucide-react';
+
+const formatDetailValue = (value?: string) => {
+  const normalized = String(value || '').trim();
+  return normalized || '-';
+};
 
 const AdminCustomers = () => {
   const { user } = useAuth();
   const [customers, setCustomers] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [pendingDeleteCustomerId, setPendingDeleteCustomerId] = useState<string | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
   const isSuperAdmin = user?.isSuperAdmin;
 
   const isAdminLikeUser = (customer: any) => {
@@ -117,21 +126,128 @@ const AdminCustomers = () => {
                     <p className="text-sm text-muted-foreground break-all sm:break-normal">{c.email}</p>
                   </div>
                 </div>
-                {isSuperAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => setPendingDeleteCustomerId(c.id)}
-                    className="inline-flex w-full md:w-auto justify-center items-center rounded-md bg-red-600 px-3 py-2 text-white hover:bg-red-700"
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Delete
-                  </button>
-                )}
+
+                <div className="flex items-center justify-between md:justify-end gap-2.5 md:gap-3 pt-1 md:pt-0">
+                  {isSuperAdmin && (
+                    <Button
+                      type="button"
+                      className="h-11 min-w-[120px] rounded-md bg-[#255c45] hover:bg-[#214f3b] text-white px-4"
+                      onClick={() => setSelectedCustomer(c)}
+                    >
+                      Details
+                    </Button>
+                  )}
+
+                  {isSuperAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setPendingDeleteCustomerId(c.id)}
+                      className="inline-flex h-11 min-w-[120px] w-auto justify-center items-center rounded-md bg-red-600 px-4 text-white hover:bg-red-700 whitespace-nowrap"
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      Delete
+                    </button>
+                  )}
+                </div>
               </div>
             </Card>
           ))
         )}
       </div>
+
+      <Dialog
+        open={!!selectedCustomer}
+        onOpenChange={(open) => {
+          if (!open) setSelectedCustomer(null);
+        }}
+      >
+        <DialogContent className="w-[92vw] max-w-2xl max-h-[82vh] overflow-hidden rounded-2xl border-2 border-[#255c45] p-0 flex flex-col gap-0 [&>button:last-child]:hidden">
+          <DialogHeader className="shrink-0 px-4 pt-4 pb-3 sm:px-6 sm:pt-5 sm:pb-3.5 border-b border-[#255c45]/20 bg-slate-100/95 text-center sm:text-center">
+            <DialogTitle className="w-full text-center text-2xl sm:text-[1.6rem] leading-tight">Customer Details</DialogTitle>
+          </DialogHeader>
+
+          {selectedCustomer && (
+            <>
+              <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-1 pb-3.5 sm:px-6 sm:pt-2 sm:pb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label>Name</Label>
+                    <div className="rounded-xl border-2 border-[#255c45] bg-white px-3 py-2 text-sm">
+                      {formatDetailValue(selectedCustomer.fullName || selectedCustomer.username)}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>Email</Label>
+                    <div className="rounded-xl border-2 border-[#255c45] bg-white px-3 py-2 text-sm break-all">
+                      {formatDetailValue(selectedCustomer.email)}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>Mobile</Label>
+                    <div className="rounded-xl border-2 border-[#255c45] bg-white px-3 py-2 text-sm">
+                      {formatDetailValue(selectedCustomer.mobileNumber)}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>Gender</Label>
+                    <div className="rounded-xl border-2 border-[#255c45] bg-white px-3 py-2 text-sm">
+                      {formatDetailValue(selectedCustomer.gender)}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>Country</Label>
+                    <div className="rounded-xl border-2 border-[#255c45] bg-white px-3 py-2 text-sm">
+                      {formatDetailValue(selectedCustomer.country)}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>State</Label>
+                    <div className="rounded-xl border-2 border-[#255c45] bg-white px-3 py-2 text-sm">
+                      {formatDetailValue(selectedCustomer.state)}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>City</Label>
+                    <div className="rounded-xl border-2 border-[#255c45] bg-white px-3 py-2 text-sm">
+                      {formatDetailValue(selectedCustomer.city)}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label>Pincode</Label>
+                    <div className="rounded-xl border-2 border-[#255c45] bg-white px-3 py-2 text-sm">
+                      {formatDetailValue(selectedCustomer.pincode)}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label>Address</Label>
+                    <div className="rounded-xl border-2 border-[#255c45] bg-white px-3 py-2 text-sm">
+                      {formatDetailValue(selectedCustomer.address)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="shrink-0 border-t border-[#255c45]/20 bg-slate-100/95 px-4 py-3 sm:px-6 sm:py-3.5">
+                <Button
+                  type="button"
+                  className="h-11 w-full bg-[#255c45] hover:bg-[#214f3b] text-white"
+                  onClick={() => setSelectedCustomer(null)}
+                >
+                  Close
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <ConfirmActionDialog
         open={!!pendingDeleteCustomerId}

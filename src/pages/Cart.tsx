@@ -1,10 +1,11 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { getCart, updateCartQty, removeFromCart, saveCart, type CartItem } from '@/lib/cart';
+import { getCart, updateCartQtyByUnit, removeFromCartByUnit, saveCart, type CartItem } from '@/lib/cart';
+import { getPricingOptionByUnit } from '@/lib/pricing';
 import { previewOffers, type OfferPreviewResponse } from '@/lib/offers';
 import { ShoppingBag, Trash2, ArrowRight } from 'lucide-react';
 const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -16,6 +17,7 @@ const Cart = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [items, setItems] = useState<CartItem[]>(() => getCart());
+  const previousItemCountRef = useRef(items.length);
   const [isCartReady, setIsCartReady] = useState(false);
   const [qtyDrafts, setQtyDrafts] = useState<Record<string, string>>({});
   const [offerPreview, setOfferPreview] = useState<OfferPreviewResponse | null>(null);
@@ -57,9 +59,14 @@ const Cart = () => {
       const productMap = new Map(products.map((p) => [String(p.id || p._id), p]));
       const synced = currentCart.map((item) => {
         const product = productMap.get(String(item.id));
+        const selectedPricing = product
+          ? getPricingOptionByUnit(product, item.unit)
+          : { unit: item.unit || '1 kg', price: Number(item.price || 0) };
+
         return {
           ...item,
-          unit: product?.unit || item.unit || 'kg',
+          unit: selectedPricing.unit,
+          price: Number(selectedPricing.price || item.price || 0),
           available: product ? Boolean(product.available) : item.available ?? true,
         };
       });
@@ -128,6 +135,7 @@ const Cart = () => {
   };
 
   const refresh = () => setItems(getCart());
+  const getItemKey = (item: Pick<CartItem, 'id' | 'unit'>) => `${item.id}::${String(item.unit || '').trim()}`;
 
   const welcomeOffer = useMemo(
     () => offerPreview?.offers?.find((offer) => offer.type === 'WELCOME') || null,
@@ -154,10 +162,21 @@ const Cart = () => {
   useEffect(() => {
     const nextDrafts: Record<string, string> = {};
     for (const item of items) {
-      nextDrafts[item.id] = String(item.quantity);
+      nextDrafts[getItemKey(item)] = String(item.quantity);
     }
     setQtyDrafts(nextDrafts);
   }, [items]);
+
+  useEffect(() => {
+    const previousCount = previousItemCountRef.current;
+    if (previousCount > 0 && items.length === 0) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      });
+    }
+    previousItemCountRef.current = items.length;
+  }, [items.length]);
 
   useEffect(() => {
     if (!items.length) {
@@ -167,35 +186,39 @@ const Cart = () => {
     loadOfferPreview(appliedCouponCode || undefined);
   }, [subtotal, deliveryCharge, isAuthenticated, items.length, appliedCouponCode]);
 
-  const onQtyChange = (id: string, qty: number) => {
-    updateCartQty(id, qty);
+  const onQtyChange = (id: string, unit: string | undefined, qty: number) => {
+    updateCartQtyByUnit(id, unit, qty);
     refresh();
   };
 
-  const onQtyInputChange = (id: string, value: string) => {
+  const onQtyInputChange = (id: string, unit: string | undefined, value: string) => {
+    const draftKey = `${id}::${String(unit || '').trim()}`;
     if (value === '') {
-      setQtyDrafts((prev) => ({ ...prev, [id]: '' }));
+      setQtyDrafts((prev) => ({ ...prev, [draftKey]: '' }));
       return;
     }
 
     if (!/^\d+$/.test(value)) return;
 
-    setQtyDrafts((prev) => ({ ...prev, [id]: value }));
+    setQtyDrafts((prev) => ({ ...prev, [draftKey]: value }));
     const parsed = Number.parseInt(value, 10);
     if (!Number.isFinite(parsed)) return;
-    onQtyChange(id, Math.max(1, parsed));
+    onQtyChange(id, unit, Math.max(1, parsed));
   };
 
-  const onQtyInputBlur = (id: string) => {
-    const draft = qtyDrafts[id];
+  const onQtyInputBlur = (id: string, unit: string | undefined) => {
+    const draftKey = `${id}::${String(unit || '').trim()}`;
+    const draft = qtyDrafts[draftKey];
     if (draft === '' || !/^\d+$/.test(draft)) {
-      const existing = items.find((item) => item.id === id);
-      setQtyDrafts((prev) => ({ ...prev, [id]: String(existing?.quantity ?? 1) }));
+      const existing = items.find(
+        (item) => item.id === id && String(item.unit || '').trim() === String(unit || '').trim()
+      );
+      setQtyDrafts((prev) => ({ ...prev, [draftKey]: String(existing?.quantity ?? 1) }));
     }
   };
 
-  const onRemove = (id: string) => {
-    removeFromCart(id);
+  const onRemove = (id: string, unit: string | undefined) => {
+    removeFromCartByUnit(id, unit);
     refresh();
   };
 
@@ -458,15 +481,18 @@ const Cart = () => {
         </section>
 
         <div className="space-y-4">
-          {items.map((item) => (
-            <Card key={item.id} className="p-3 sm:p-4 border-2 border-[#255c45]">
+          {items.map((item) => {
+            const itemKey = getItemKey(item);
+
+            return (
+            <Card key={itemKey} className="p-3 sm:p-4 border-2 border-[#255c45]">
               <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(190px,1fr)_170px] gap-3 sm:gap-4 lg:items-center">
                 <div className="flex items-center justify-between gap-3 sm:gap-4">
                   <div className="flex gap-3 sm:gap-4 items-center min-w-0">
                     <img src={item.image} alt={item.name} className={`w-20 h-20 rounded-md object-cover border-2 border-[#255c45] ${item.available === false ? 'grayscale opacity-70' : ''}`} />
                     <div>
                     <p className="font-semibold text-lg">{item.name}</p>
-                    <p className="text-sm text-muted-foreground">₹{item.price}/{item.unit || 'kg'}</p>
+                    <p className="text-sm text-muted-foreground">₹{item.price}/{item.unit || '1 kg'}</p>
                     <p className={`text-xs font-semibold mt-1 ${item.available === false ? 'text-red-600' : 'text-emerald-700'}`}>
                       {item.available === false ? 'Out of Stock' : 'In Stock'}
                     </p>
@@ -481,7 +507,7 @@ const Cart = () => {
                     <button
                       type="button"
                       className="w-10 text-lg font-semibold border-r border-[#255c45] disabled:opacity-40 disabled:cursor-not-allowed"
-                      onClick={() => onQtyChange(item.id, item.quantity - 1)}
+                      onClick={() => onQtyChange(item.id, item.unit, item.quantity - 1)}
                       disabled={item.available === false || item.quantity <= 1}
                     >
                       -
@@ -491,16 +517,16 @@ const Cart = () => {
                       min={1}
                       step={1}
                       inputMode="numeric"
-                      value={qtyDrafts[item.id] ?? String(item.quantity)}
-                      onChange={(e) => onQtyInputChange(item.id, e.target.value)}
-                      onBlur={() => onQtyInputBlur(item.id)}
+                      value={qtyDrafts[itemKey] ?? String(item.quantity)}
+                      onChange={(e) => onQtyInputChange(item.id, item.unit, e.target.value)}
+                      onBlur={() => onQtyInputBlur(item.id, item.unit)}
                       disabled={item.available === false}
                       className="w-16 text-center text-base font-semibold bg-white outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <button
                       type="button"
                       className="w-10 text-lg font-semibold border-l border-[#255c45] disabled:opacity-40 disabled:cursor-not-allowed"
-                      onClick={() => onQtyChange(item.id, item.quantity + 1)}
+                      onClick={() => onQtyChange(item.id, item.unit, item.quantity + 1)}
                       disabled={item.available === false}
                     >
                       +
@@ -510,7 +536,7 @@ const Cart = () => {
 
                 <div className="hidden lg:block text-right lg:justify-self-end">
                   <p className="font-bold text-xl">₹{item.price * item.quantity}</p>
-                  <Button className="hidden lg:inline-flex mt-2 bg-red-600 hover:bg-red-700 text-white" onClick={() => onRemove(item.id)}>
+                  <Button className="hidden lg:inline-flex mt-2 bg-red-600 hover:bg-red-700 text-white" onClick={() => onRemove(item.id, item.unit)}>
                     <Trash2 className="w-4 h-4 mr-1" /> Remove
                   </Button>
                 </div>
@@ -520,7 +546,7 @@ const Cart = () => {
                       <button
                         type="button"
                         className="w-10 text-lg font-semibold border-r border-[#255c45] disabled:opacity-40 disabled:cursor-not-allowed"
-                        onClick={() => onQtyChange(item.id, item.quantity - 1)}
+                        onClick={() => onQtyChange(item.id, item.unit, item.quantity - 1)}
                         disabled={item.available === false || item.quantity <= 1}
                       >
                         -
@@ -530,28 +556,28 @@ const Cart = () => {
                         min={1}
                         step={1}
                         inputMode="numeric"
-                        value={qtyDrafts[item.id] ?? String(item.quantity)}
-                        onChange={(e) => onQtyInputChange(item.id, e.target.value)}
-                        onBlur={() => onQtyInputBlur(item.id)}
+                        value={qtyDrafts[itemKey] ?? String(item.quantity)}
+                        onChange={(e) => onQtyInputChange(item.id, item.unit, e.target.value)}
+                        onBlur={() => onQtyInputBlur(item.id, item.unit)}
                         disabled={item.available === false}
                         className="w-16 text-center text-base font-semibold bg-white outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                       <button
                         type="button"
                         className="w-10 text-lg font-semibold border-l border-[#255c45] disabled:opacity-40 disabled:cursor-not-allowed"
-                        onClick={() => onQtyChange(item.id, item.quantity + 1)}
+                        onClick={() => onQtyChange(item.id, item.unit, item.quantity + 1)}
                         disabled={item.available === false}
                       >
                         +
                       </button>
                   </div>
-                  <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={() => onRemove(item.id)}>
+                  <Button className="bg-red-600 hover:bg-red-700 text-white" onClick={() => onRemove(item.id, item.unit)}>
                     <Trash2 className="w-4 h-4 mr-1" /> Remove
                   </Button>
                 </div>
               </div>
             </Card>
-          ))}
+          )})}
         </div>
 
         <Card className="p-5 mt-6 border-2 border-[#255c45] space-y-4">

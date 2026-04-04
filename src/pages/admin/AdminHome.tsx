@@ -213,25 +213,6 @@ const AdminHome = () => {
     }
   };
 
-  const toggleCouponActive = async (couponId: string, active: boolean) => {
-    try {
-      const token = localStorage.getItem('fresco_token');
-      const res = await fetch(`${VITE_API_BASE_URL}/api/offers/super-admin/coupons/${couponId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ active }),
-      });
-
-      if (!res.ok) throw new Error('update failed');
-      await loadOfferData();
-    } catch {
-      toast({ title: 'Coupon update failed', description: 'Could not update coupon status.', variant: 'destructive' });
-    }
-  };
-
   const toggleCouponVisibility = async (couponId: string, isPublic: boolean) => {
     try {
       const token = localStorage.getItem('fresco_token');
@@ -589,10 +570,10 @@ const AdminHome = () => {
                     value={couponForm.isPublic ? 'true' : 'false'}
                     onValueChange={(val) => setCouponForm((prev) => ({ ...prev, isPublic: val === 'true' }))}
                   >
-                    <SelectTrigger className="bg-white">
+                    <SelectTrigger className="bg-white border-[#255c45]">
                       <SelectValue placeholder="Select visibility" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="rounded-xl border-[#255c45] bg-white">
                       <SelectItem value="false">Hide (exclusive code)</SelectItem>
                       <SelectItem value="true">Show in all users' carts</SelectItem>
                     </SelectContent>
@@ -635,19 +616,11 @@ const AdminHome = () => {
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-3 gap-2">
+                <div className="mt-4 grid grid-cols-2 gap-3">
                   <Button
                     type="button"
-                    variant={coupon.active ? 'outline' : 'default'}
-                    className={`h-8 px-1 sm:px-2 text-[10px] sm:text-xs font-medium shrink-0 ${coupon.active ? 'border-[#255c45] text-[#255c45] hover:bg-[#255c45]/10' : 'bg-[#255c45] hover:bg-[#214f3b] text-white'}`}
-                    onClick={() => toggleCouponActive(coupon.id, !coupon.active)}
-                  >
-                    {coupon.active ? 'Disable' : 'Enable'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={coupon.isPublic ? 'outline' : 'default'}
-                    className={`h-8 px-1 sm:px-2 text-[10px] sm:text-xs font-medium shrink-0 ${coupon.isPublic ? 'border-slate-500 text-slate-600 hover:bg-slate-100' : 'bg-slate-500 hover:bg-slate-600 text-white'}`}
+                    variant="default"
+                    className={`h-8 px-1 sm:px-2 text-[10px] sm:text-xs font-medium shrink-0 ${coupon.isPublic ? 'bg-slate-500 hover:bg-slate-600 text-white' : 'bg-[#255c45] hover:bg-[#214f3b] text-white'}`}
                     onClick={() => toggleCouponVisibility(coupon.id, !coupon.isPublic)}
                   >
                     {coupon.isPublic ? 'Hide Tag' : 'Show Tag'}

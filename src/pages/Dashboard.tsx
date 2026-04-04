@@ -12,7 +12,7 @@ const Dashboard = () => {
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542838132-92c53300491e?w=1280&q=70&auto=format&fit=crop')] bg-cover bg-center opacity-32"></div>
         <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/30 to-[#103626]/55 backdrop-blur-[2px]"></div>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="max-w-3xl mx-auto text-center space-y-6 px-5 py-7 sm:px-8 sm:py-10">
+          <div className="max-w-3xl mx-auto text-center space-y-6 px-5 py-7 -translate-y-5 sm:translate-y-0 sm:px-8 sm:py-10">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight [text-shadow:0_3px_14px_rgba(0,0,0,0.75)]">
               Fresh Organic Fruits and Vegetables
             </h1>

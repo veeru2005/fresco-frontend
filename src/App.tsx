@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Suspense, lazy, useEffect, useLayoutEffect, useRef } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route, useLocation, matchPath } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Navbar from "@/components/Navbar";
@@ -50,6 +50,36 @@ const RoleBasedHome = () => {
 const AppContent = () => {
   const location = useLocation();
   const isMobileViewRef = useRef<boolean | null>(null);
+  const knownRoutePatterns = [
+    "/",
+    "/signin",
+    "/signup",
+    "/dashboard",
+    "/booking",
+    "/products",
+    "/cart",
+    "/delivery-details",
+    "/payment",
+    "/payment-success",
+    "/tracking",
+    "/feedback",
+    "/my-orders",
+    "/my-bookings",
+    "/profile",
+    "/admin",
+    "/admin/products",
+    "/admin/orders",
+    "/admin/customers",
+    "/admin/admins",
+    "/admin/feedback",
+    "/about",
+  ];
+  const normalizedPathname = location.pathname !== "/" ? location.pathname.replace(/\/+$/, "") : "/";
+  const isNotFoundRoute = !knownRoutePatterns.some((pattern) =>
+    matchPath({ path: pattern, end: true }, normalizedPathname),
+  );
+  const shouldShowChrome = !isNotFoundRoute;
+
   const hideFooterRoutes = [
     '/signin',
     '/signup',
@@ -99,8 +129,14 @@ const AppContent = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar />
-      <main className={`flex-1 ${useCompactMobileBottom ? 'mobile-safe-bottom-compact' : 'mobile-safe-bottom'} pt-16 md:pt-20`}>
+      {shouldShowChrome && <Navbar />}
+      <main
+        className={
+          shouldShowChrome
+            ? `flex-1 ${useCompactMobileBottom ? 'mobile-safe-bottom-compact' : 'mobile-safe-bottom'} pt-16 md:pt-20`
+            : "flex-1"
+        }
+      >
         <div key={`${location.pathname}${location.search}`} className="page-transition-enter">
           <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">Loading...</div>}>
             <Routes>
@@ -134,7 +170,7 @@ const AppContent = () => {
           </Suspense>
         </div>
       </main>
-      {!shouldHideFooter && <Footer />}
+      {shouldShowChrome && !shouldHideFooter && <Footer />}
     </div>
   );
 };

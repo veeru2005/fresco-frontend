@@ -6,13 +6,13 @@ const Footer = () => {
   const { user, isAuthenticated } = useAuth();
   const linkedinProfileUrl = 'https://www.linkedin.com/in/veerendra-chowdary-sunkavalli-513b58309/';
   return (
-    <footer className="bg-[#2f7656] border-t border-white/15 mt-auto text-white">
+    <footer className="bg-[#2f7656] border-t-2 border-amber-300/80 mt-auto text-white">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] md:pb-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Company Info */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="relative h-11 w-11 rounded-[10px] overflow-hidden bg-white shrink-0">
+              <div className="relative h-11 w-11 rounded-[10px] overflow-hidden bg-white shrink-0 shadow-sm">
                 <img src="https://res.cloudinary.com/dv5qxkxmc/image/upload/v1775308892/2_oast1m.jpg" alt="Fresco Organics logo" className="h-full w-full object-cover scale-110" />
               </div>
               <div className="flex items-baseline gap-2">

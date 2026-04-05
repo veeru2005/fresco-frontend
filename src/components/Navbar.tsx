@@ -206,7 +206,7 @@ const Navbar = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 md:h-20">
             <div className="flex items-center gap-2 group" aria-label="Fresco Organics brand">
-              <div className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-[8px] overflow-hidden group-hover:scale-105 transition-transform duration-300 shadow-sm bg-white">
+              <div className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-[10px] overflow-hidden group-hover:scale-105 transition-transform duration-300 shadow-sm bg-white">
                 <img src="https://res.cloudinary.com/dv5qxkxmc/image/upload/v1775308892/2_oast1m.jpg" alt="Fresco Organics logo" className="h-full w-full object-cover scale-110" />
               </div>
               <span className="flex items-baseline gap-2">
@@ -302,7 +302,7 @@ const Navbar = () => {
             aria-label="Close menu"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="relative bg-[#255c45] text-white border-t border-white/20 border-b-2 border-amber-300/70 shadow-xl animate-in slide-in-from-top duration-200 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+4px)]">
+          <div className="relative bg-[#255c45] text-white border-b-2 border-amber-300/80 shadow-xl animate-in slide-in-from-top duration-200 overflow-y-auto pb-[calc(env(safe-area-inset-bottom)+4px)]">
             <div className="container mx-auto px-4 py-3">
 
               <div className="flex flex-col gap-2 items-center text-center">

@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const Footer = () => {
   const { user, isAuthenticated } = useAuth();
-  const linkedinProfileUrl = 'https://www.linkedin.com/in/veerendra-chowdary-sunkavalli-513b58309/';
   return (
     <footer className="bg-[#2f7656] border-t-2 border-amber-300/80 mt-auto text-white">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] md:pb-12">
@@ -203,24 +202,16 @@ const Footer = () => {
             <div className="flex w-full flex-nowrap items-center justify-center sm:justify-end gap-1 whitespace-nowrap text-[0.90rem] sm:text-sm leading-tight tracking-tight px-1">
               <span>Developed by</span>
               <a
-                href={linkedinProfileUrl}
+                href="https://veerendra-portfolio.in"
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-inherit hover:text-inherit cursor-pointer"
+                className="inline-flex items-center gap-1 text-inherit hover:text-inherit cursor-pointer group"
               >
-                <span className="inline-flex items-center justify-center rounded-[4px] bg-[#0a66c2] p-[3px] text-white">
-                  <svg
-                    viewBox="0 0 32 32"
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-3 w-3"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fill="currentColor"
-                      d="M28.778 1.004h-25.56c-0.008 0-0.017-0-0.027-0-1.199 0-2.172 0.964-2.186 2.159v25.672c0.014 1.196 0.987 2.161 2.186 2.161 0.010 0 0.019-0 0.029-0h25.555c0.008 0 0.018 0 0.028 0 1.2 0 2.175-0.963 2.194-2.159l0-0.002v-25.67c-0.019-1.197-0.994-2.161-2.195-2.161-0.010 0-0.019 0-0.029 0h0.001zM9.9 26.562h-4.454v-14.311h4.454zM7.674 10.293c-1.425 0-2.579-1.155-2.579-2.579s1.155-2.579 2.579-2.579c1.424 0 2.579 1.154 2.579 2.578v0c0 0.001 0 0.002 0 0.004 0 1.423-1.154 2.577-2.577 2.577-0.001 0-0.002 0-0.003 0h0zM26.556 26.562h-4.441v-6.959c0-1.66-0.034-3.795-2.314-3.795-2.316 0-2.669 1.806-2.669 3.673v7.082h-4.441v-14.311h4.266v1.951h0.058c0.828-1.395 2.326-2.315 4.039-2.315 0.061 0 0.121 0.001 0.181 0.003l-0.009-0c4.5 0 5.332 2.962 5.332 6.817v7.855z"
-                    />
-                  </svg>
-                </span>
+                <img 
+                  src="/portfolio.png" 
+                  alt="Portfolio" 
+                  className="h-5 w-5 object-contain transition-transform duration-300 group-hover:scale-110" 
+                />
                 <span className="text-amber-300">S. Veerendra Chowdary</span>
               </a>
             </div>

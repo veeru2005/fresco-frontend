@@ -191,11 +191,11 @@ const SignIn = () => {
 
             <div className="flex flex-col items-center w-full gap-4 sm:gap-5">
               <div className="w-full flex justify-center">
-                <div 
-                  ref={googleButtonHostRef} 
-                  className={googleReady && !loading ? 'flex justify-center w-full max-w-[320px] rounded-2xl border-2 border-[#255c45] bg-white overflow-hidden shadow-md' : 'absolute invisible'} 
+                <div
+                  ref={googleButtonHostRef}
+                  className={googleReady && !loading ? 'flex justify-center w-full max-w-[320px] rounded-2xl border-2 border-[#255c45] bg-white overflow-hidden shadow-md' : 'absolute invisible'}
                 />
-                
+
                 {(!googleReady || loading) && (
                   <Button
                     type="button"
